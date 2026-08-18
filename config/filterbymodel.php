@@ -38,22 +38,34 @@ return [
     | Scoperta Automatica dei Modelli (Auto-Discovery)
     |--------------------------------------------------------------------------
     |
-    | Il package può rilevare dinamicamente tutti i modelli Eloquent
-    | dell'applicazione tramite Reflection, senza doverli mappare a mano.
+    | Di default, il package scansiona automaticamente tutti i modelli Eloquent
+    | presenti in app/Models (e app/) senza alcuna configurazione manuale.
     |
-    | - auto_discover: se true, scansiona i percorsi indicati in 'paths'
-    | - paths: cartelle da scansionare per i modelli Eloquent
-    | - explicit: elenco facoltativo per sovrascrivere o aggiungere modelli manualmente
+    | - auto_discover: true per scansionare automaticamente i file su disco
+    | - paths: percorsi/cartelle da scansionare (es. app_path('Models'), moduli DDD, ecc.)
+    | - ignore: classi di modelli da escludere dalla lista
+    | - explicit: modelli aggiuntivi o manuali (es. da altri package/vendor)
     |
     */
 
     'models' => [
         'auto_discover' => true,
+
+        // Cartelle da scansionare per i modelli Eloquent (default: app/Models)
         'paths' => [
             app_path('Models'),
+            // app_path('Domain/Accounting/Models'), // Esempio percorso personalizzato
         ],
+
+        // Modelli da ignorare
+        'ignore' => [
+            \SalvatoreCervone\FilterByModel\Models\FilterDefinition::class,
+            \SalvatoreCervone\FilterByModel\Models\UserFilter::class,
+        ],
+
+        // Modelli manuali/espliciti aggiuntivi
         'explicit' => [
-            // Esempio: ['class' => 'App\Models\Anagrafica', 'name' => 'Anagrafica'],
+            // ['class' => 'App\Models\Anagrafica', 'name' => 'Anagrafica'],
         ],
     ],
 

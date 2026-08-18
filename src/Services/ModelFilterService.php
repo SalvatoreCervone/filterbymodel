@@ -334,48 +334,98 @@ class ModelFilterService
 
     /**
      * Rileva dinamicamente i modelli disponibili per la configurazione dei filtri.
-     * Se è definita la lista esplicita in config, la usa; altrimenti scansiona le cartelle dell'app.
+     * Di default scansiona automaticamente la cartella App\Models (e app_path se necessario),
+     * supporta percorsi personalizzati, classi da ignorare e aggiunta di modelli espliciti.
      */
     public function getAvailableModels(): array
     {
-        $explicit = config('filterbymodel.models.explicit', config('filterbymodel.models', []));
+        $models = [];
+        $ignoredClasses = config('filterbymodel.models.ignore', [
+            \SalvatoreCervone\FilterByModel\Models\FilterDefinition::class,
+            \SalvatoreCervone\FilterByModel\Models\UserFilter::class,
+        ]);
 
-        if (is_array($explicit) && !empty($explicit) && isset($explicit[0]['class'])) {
-            return $explicit;
-        }
-
+        // 1. Auto-discovery abilitato di default
         if (config('filterbymodel.models.auto_discover', true)) {
-            return $this->autoDiscoverModels();
+            $discovered = $this->autoDiscoverModels();
+            foreach ($discovered as $model) {
+                if (!in_array($model['class'], $ignoredClasses, true)) {
+                    $models[$model['class']] = $model;
+                }
+            }
         }
 
-        return [];
+        // 2. Modelli espliciti definiti in configurazione (se presenti, vengono uniti)
+        $explicit = config('filterbymodel.models.explicit', []);
+        
+        // Supporta anche il vecchio formato dove 'models' era direttamente un array di classi
+        if (empty($explicit) && is_array(config('filterbymodel.models')) && isset(config('filterbymodel.models')[0]['class'])) {
+            $explicit = config('filterbymodel.models');
+        }
+
+        if (is_array($explicit)) {
+            foreach ($explicit as $item) {
+                if (isset($item['class']) && !in_array($item['class'], $ignoredClasses, true)) {
+                    $name = $item['name'] ?? class_basename($item['class']);
+                    $models[$item['class']] = [
+                        'class' => $item['class'],
+                        'name'  => $name,
+                    ];
+                }
+            }
+        }
+
+        // Ordina alfabeticamente per nome del modello
+        $result = array_values($models);
+        usort($result, fn($a, $b) => strcasecmp($a['name'], $b['name']));
+
+        return $result;
     }
 
     /**
-     * Scansiona i percorsi configurati per trovare automaticamente tutte le classi Eloquent Model.
+     * Scansiona i percorsi dell'applicazione per trovare automaticamente tutte le classi Eloquent Model.
      */
     public function autoDiscoverModels(): array
     {
-        $paths = config('filterbymodel.models.paths', [app_path('Models')]);
+        // Percorsi di default: prima app_path('Models'), poi app_path() se la cartella Models non esiste
+        $defaultPaths = [];
+        if (is_dir(app_path('Models'))) {
+            $defaultPaths[] = app_path('Models');
+        }
+        if (is_dir(app_path()) && empty($defaultPaths)) {
+            $defaultPaths[] = app_path();
+        }
+
+        $paths = config('filterbymodel.models.paths', $defaultPaths);
         $models = [];
 
-        foreach ($paths as $path) {
+        foreach ((array) $paths as $path) {
             if (!is_dir($path)) {
                 continue;
             }
 
             $files = File::allFiles($path);
             foreach ($files as $file) {
+                // Considera solo file PHP
+                if ($file->getExtension() !== 'php') {
+                    continue;
+                }
+
                 $class = $this->getClassFromFile($file->getRealPath());
 
                 if ($class && class_exists($class)) {
-                    $reflection = new ReflectionClass($class);
+                    try {
+                        $reflection = new ReflectionClass($class);
 
-                    if ($reflection->isSubclassOf(Model::class) && !$reflection->isAbstract()) {
-                        $models[] = [
-                            'class' => $class,
-                            'name'  => $reflection->getShortName(),
-                        ];
+                        // Deve essere una sottoclasse di Eloquent Model, non astratta e non un Trait/Interface
+                        if ($reflection->isSubclassOf(Model::class) && !$reflection->isAbstract()) {
+                            $models[] = [
+                                'class' => $class,
+                                'name'  => $reflection->getShortName(),
+                            ];
+                        }
+                    } catch (\Throwable $e) {
+                        // Ignora eventuali classi non istanziabili o con errori di autoload
                     }
                 }
             }
@@ -389,11 +439,15 @@ class ModelFilterService
      */
     protected function getClassFromFile(string $filePath): ?string
     {
-        $contents = file_get_contents($filePath);
+        $contents = @file_get_contents($filePath);
+        if ($contents === false) {
+            return null;
+        }
+
         $namespace = null;
         $class = null;
 
-        if (preg_match('/namespace\s+(.+?);/', $contents, $matches)) {
+        if (preg_match('/namespace\s+([^;]+);/', $contents, $matches)) {
             $namespace = trim($matches[1]);
         }
 

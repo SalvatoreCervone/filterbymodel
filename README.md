@@ -69,22 +69,51 @@ php artisan migrate
 
 ## Configurazione
 
-Modifica il file `config/filterbymodel.php` pubblicato per registrare i tuoi modelli e impostare le preferenze:
+Il package funziona **out-of-the-box con zero configurazione**: di default rileva e scansiona automaticamente tutti i modelli Eloquent presenti nella cartella standard di Laravel `app/Models` (e `app/`).
+
+Se desideri personalizzare le impostazioni, modifica il file `config/filterbymodel.php` pubblicato:
 
 ```php
 return [
-    // Modelli disponibili nella maschera di configurazione admin
+    /*
+    |--------------------------------------------------------------------------
+    | Scoperta dei Modelli Eloquent
+    |--------------------------------------------------------------------------
+    | Di default (auto_discover = true), il package scansiona automaticamente
+    | tutti i modelli Eloquent in app/Models.
+    | Puoi aggiungere ulteriori percorsi custom o modelli espliciti se necessario.
+    */
     'models' => [
-        ['class' => 'App\Models\Anagrafica', 'name' => 'Anagrafica'],
-        ['class' => 'App\Models\Ufficio',     'name' => 'Ufficio'],
-        ['class' => 'App\Models\Qualifica',   'name' => 'Qualifica'],
+        'auto_discover' => true,
+
+        // Percorsi/cartelle da scansionare per i modelli Eloquent (default: app/Models)
+        'paths' => [
+            app_path('Models'),
+            // app_path('Domain/Accounting/Models'), // Esempio percorso personalizzato
+        ],
+
+        // Modelli da ignorare
+        'ignore' => [
+            \SalvatoreCervone\FilterByModel\Models\FilterDefinition::class,
+            \SalvatoreCervone\FilterByModel\Models\UserFilter::class,
+        ],
+
+        // Modelli manuali/espliciti aggiuntivi (opzionale)
+        'explicit' => [
+            // ['class' => 'App\Models\Anagrafica', 'name' => 'Anagrafica'],
+        ],
     ],
 
-    // Modello utente dell'applicazione
-    'user_model' => 'App\Models\User',
+    // Configurazione collegamento utente
+    'user' => [
+        'model'       => env('FILTERBYMODEL_USER_MODEL', 'App\Models\User'),
+        'foreign_key' => 'user_id',
+    ],
 
-    // Colonna predefinita per la gerarchia ad albero
-    'parent_column' => 'padre_id',
+    // Risoluzione gerarchica ad albero
+    'hierarchy' => [
+        'parent_column' => 'padre_id',
+    ],
 
     // Configurazione rotte API del package
     'routes' => [
