@@ -1,26 +1,26 @@
 # FilterByModel - Package Composer per Laravel
 
-Sistema di **sicurezza perimetrale** e **filtraggio dati a livello di riga** (row-level security) per applicazioni Laravel. Permette di definire regole di visibilità basate sui modelli Eloquent e sulle competenze assegnate agli utenti.
+Package Laravel per la **sicurezza perimetrale** e il **filtraggio dati a livello di riga** (row-level security). Permette di definire regole di visibilità basate sui modelli Eloquent e sulle competenze assegnate agli utenti.
 
 ## Funzionalità
 
-- **Filtraggio automatico in lettura**: Global Scope Eloquent che limita i risultati delle query in base ai permessi dell'utente.
+- **Filtraggio automatico in lettura**: Global Scope Eloquent che limita i risultati delle query in base ai permessi dell'utente autenticato.
 - **Validazione in scrittura/cancellazione**: Intercettazione automatica degli eventi `saving` e `deleting` per verificare il perimetro di sicurezza.
-- **Relazioni Dirette (1:N) e Pivot (N:M)**: Supporto per entrambi i tipi di collegamento tra modelli.
-- **Gerarchia ad albero**: Opzione `include_children` per includere automaticamente i figli nella catena gerarchica.
+- **Relazioni Dirette (1:N) e Pivot (N:M)**: Supporto completo per entrambi i tipi di collegamento tra modelli.
+- **Gerarchia ad albero**: Opzione `include_children` per includere automaticamente i figli nella catena gerarchica (`padre_id`).
 - **Gruppi logici AND/OR**: I filtri nello stesso gruppo operano in AND, gruppi diversi in OR.
-- **Condizioni aggiuntive JSON**: Filtri extra configurabili in formato JSON.
-- **Maschere Vue 3**: Componenti frontend pronti per la gestione admin e utente.
+- **Condizioni aggiuntive JSON**: Filtri extra configurabili in formato JSON (`additional_where`).
+- **Maschere Vue 3 con Query Preview**: Componenti frontend moderni per la gestione admin e utente con simulazione live della query SQL.
 
 ## Installazione
 
 ### 1. Aggiungi il package
 
 ```bash
-composer require salvatore/filterbymodel
+composer require salvatorecervone/filterbymodel
 ```
 
-Il ServiceProvider viene registrato automaticamente tramite Laravel Package Discovery.
+Il ServiceProvider `SalvatoreCervone\FilterByModel\FilterByModelServiceProvider` viene registrato automaticamente tramite Laravel Package Discovery.
 
 ### 2. Pubblica le risorse
 
@@ -82,8 +82,8 @@ Aggiungi il trait al modello che vuoi proteggere:
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Salvatore\FilterByModel\Traits\IntercettaFiltriSistemi;
-// oppure: use Salvatore\FilterByModel\Traits\HasModelFilters;
+use SalvatoreCervone\FilterByModel\Traits\IntercettaFiltriSistemi;
+// oppure: use SalvatoreCervone\FilterByModel\Traits\HasModelFilters;
 
 class Anagrafica extends Model
 {
@@ -97,7 +97,7 @@ Una volta applicato il trait, tutte le query su quel modello saranno automaticam
 ### Usare il Servizio Direttamente
 
 ```php
-use Salvatore\FilterByModel\Services\ModelFilterService;
+use SalvatoreCervone\FilterByModel\Services\ModelFilterService;
 
 $service = app(ModelFilterService::class);
 
@@ -106,17 +106,6 @@ $filters = $service->ottieniFiltriRisolti(Anagrafica::class);
 
 // Per un utente specifico (non l'autenticato)
 $filters = $service->ottieniFiltriRisolti(Anagrafica::class, $userId);
-```
-
-### Retrocompatibilità
-
-Per i progetti che già utilizzano `AnagraficaFilterService`:
-
-```php
-use Salvatore\FilterByModel\Services\AnagraficaFilterService;
-
-// Funziona esattamente come ModelFilterService
-$service = app(AnagraficaFilterService::class);
 ```
 
 ## API Endpoints
@@ -135,12 +124,12 @@ $service = app(AnagraficaFilterService::class);
 
 Dopo la pubblicazione (`--tag=filterbymodel-vue`), i componenti saranno disponibili in `resources/js/Components/FilterByModel/`:
 
-- **`FilterDefinitionManager.vue`** — Maschera admin per configurare le regole di visibilità.
+- **`FilterDefinitionManager.vue`** — Maschera admin per configurare le regole di visibilità con anteprima SQL live.
 - **`User/FilterManager.vue`** — Maschera per gestire i filtri assegnati a un utente.
-- **`User/FilterForm.vue`** — Form per aggiungere nuovi filtri utente.
+- **`User/FilterForm.vue`** — Form per aggiungere nuovi filtri utente con supporto alberi (`include_children`).
 - **`User/FilterList.vue`** — Tabella con i filtri attivi e azioni di rimozione.
 
-### Integrazione con il tuo componente di ricerca utente
+### Integrazione con il componente di ricerca utente
 
 Il `FilterManager.vue` espone uno **slot** `user-search` per integrare il tuo componente di ricerca:
 
@@ -152,7 +141,12 @@ Il `FilterManager.vue` espone uno **slot** `user-search` per integrare il tuo co
 </FilterManager>
 ```
 
+### Strutture ad Albero e Colonne Gerarchiche (`include_children`)
+
+Quando si abilitano i sotto-elementi (`include_children`), il package risolve ricorsivamente tutti i nodi figli:
+- **Dalla UI Admin (`FilterDefinitionManager.vue`)**: puoi impostare direttamente il campo *"Colonna per la Gerarchia ad Albero"* (es. `parent_id`, `id_padre`).
+- **Se lasciato vuoto**: usa `padre_id` di default oppure rileva automaticamente le colonne note su DB (`padre_id`, `parent_id`, `id_padre`, `parent_code`, `id_genitore`).
+
 ## Licenza
 
 MIT
-# filterbymodel

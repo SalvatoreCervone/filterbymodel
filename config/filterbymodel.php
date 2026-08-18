@@ -1,0 +1,129 @@
+<?php
+
+return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Nomi delle Tabelle Database
+    |--------------------------------------------------------------------------
+    |
+    | I nomi delle tabelle utilizzate dal package per memorizzare le definizioni
+    | dei filtri e i filtri assegnati agli utenti. Completamente personalizzabili.
+    |
+    */
+
+    'tables' => [
+        'filter_definitions' => 'filter_definitions',
+        'user_filters'       => 'user_filters',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Configurazione Utente
+    |--------------------------------------------------------------------------
+    |
+    | Impostazioni per il collegamento all'entità utente dell'applicazione:
+    | - model: la classe del modello User (se null, usa auth.providers.users.model)
+    | - foreign_key: il nome della colonna usata come foreign key verso l'utente
+    |
+    */
+
+    'user' => [
+        'model'       => env('FILTERBYMODEL_USER_MODEL', 'App\Models\User'),
+        'foreign_key' => 'user_id',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Scoperta Automatica dei Modelli (Auto-Discovery)
+    |--------------------------------------------------------------------------
+    |
+    | Il package può rilevare dinamicamente tutti i modelli Eloquent
+    | dell'applicazione tramite Reflection, senza doverli mappare a mano.
+    |
+    | - auto_discover: se true, scansiona i percorsi indicati in 'paths'
+    | - paths: cartelle da scansionare per i modelli Eloquent
+    | - explicit: elenco facoltativo per sovrascrivere o aggiungere modelli manualmente
+    |
+    */
+
+    'models' => [
+        'auto_discover' => true,
+        'paths' => [
+            app_path('Models'),
+        ],
+        'explicit' => [
+            // Esempio: ['class' => 'App\Models\Anagrafica', 'name' => 'Anagrafica'],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Risoluzione Gerarchica ad Albero (Strutture Parent-Child)
+    |--------------------------------------------------------------------------
+    |
+    | Come risolvere i nodi figli quando è attivo 'include_children'.
+    | Il package supporta 4 modalità di rilevamento automatico:
+    |
+    | 1. Metodo nel modello: public function getParentColumnName(): string { return 'parent_id'; }
+    | 2. Proprietà nel modello: public $parentColumn = 'parent_id';
+    | 3. Mapping per modello in 'model_columns' (vedi sotto)
+    | 4. Auto-detection automatica su Database Schema tramite la lista 'fallback_columns'
+    |
+    */
+
+    'hierarchy' => [
+        // Colonna predefinita globale di fallback
+        'parent_column' => 'padre_id',
+
+        // Mappatura specifica per singoli modelli (opzionale)
+        'model_columns' => [
+            // 'App\Models\Category' => 'parent_id',
+            // 'App\Models\Office'   => 'parent_office_id',
+        ],
+
+        // Colonne verificate in ordine durante l'auto-detection su DB Schema
+        'fallback_columns' => [
+            'padre_id',
+            'parent_id',
+            'id_padre',
+            'parent_code',
+            'id_genitore',
+            'parent_node_id',
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sicurezza e Autorizzazione
+    |--------------------------------------------------------------------------
+    |
+    | - global_scope_name: nome univoco del Global Scope registrato sui modelli
+    | - auth_id_resolver: closure personalizzata per risolvere l'ID dell'utente
+    |   (se null, usa Auth::id())
+    | - unauthorized_message: messaggio di errore sollevato in scrittura/cancellazione
+    |
+    */
+
+    'security' => [
+        'global_scope_name'    => 'filter_by_model_security_perimeter',
+        'auth_id_resolver'     => null, // fn() => Auth::id(),
+        'unauthorized_message' => 'Operazione bloccata. Non possiedi i requisiti di competenza necessari per interagire con questa risorsa.',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Rotte API
+    |--------------------------------------------------------------------------
+    |
+    | Configurazione dinamica delle rotte fornite dal package.
+    |
+    */
+
+    'routes' => [
+        'enabled'    => true,
+        'prefix'     => 'api',
+        'middleware' => ['api'],
+    ],
+
+];

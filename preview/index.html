@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FilterByModel - Gestione Visuale e Intuitiva</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="bg-slate-100/70 text-slate-800 antialiased min-h-screen">
+  <div id="app" class="pb-16">
+    
+    <!-- TOP NAVIGATION BAR -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-xs">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-indigo-600 text-white rounded-xl shadow-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+          </div>
+          <div>
+            <span class="font-extrabold text-slate-900 text-base tracking-tight">FilterByModel</span>
+            <span class="ml-2 text-xs font-semibold px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100">Live Preview</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+          <button 
+            @click="currentView = 'admin'"
+            :class="[currentView === 'admin' ? 'bg-white text-indigo-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900 font-medium']"
+            class="px-3.5 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1.5"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            1. Regole Modelli (Visuale Intuitivo)
+          </button>
+          <button 
+            @click="currentView = 'user'"
+            :class="[currentView === 'user' ? 'bg-white text-indigo-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900 font-medium']"
+            class="px-3.5 py-1.5 rounded-lg text-xs transition-all flex items-center gap-1.5"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            2. Filtri Utenti
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ───────────────────────────────────────────────────────────── -->
+    <!-- VISTA 1: ADMIN (Pannello Intuitivo con Illuminazione a Colori) -->
+    <!-- ───────────────────────────────────────────────────────────── -->
+    <main v-if="currentView === 'admin'" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
+      
+      <!-- TESTATA -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="flex items-center gap-3.5">
+          <div class="p-3 bg-indigo-600 text-white rounded-2xl shadow-sm">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Regole di Visibilità e Sicurezza Dati</h1>
+            <p class="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">Configura in modo visivo chi può vedere e modificare le informazioni in base alle proprie competenze.</p>
+          </div>
+        </div>
+        <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          {{ definitions.length }} Regole Attive
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- FORM CONFIGURAZIONE GUIDATO -->
+        <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-7">
+          <div class="border-b border-slate-100 pb-4 flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900">Configurazione Nuova Regola</h2>
+              <p class="text-xs text-slate-500 mt-0.5">Segui i 3 passi guidati: i colori e lo schema ti mostrano esattamente come vengono collegati i dati.</p>
+            </div>
+            <span class="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100">
+              Guida Visiva
+            </span>
+          </div>
+
+          <form @submit.prevent="handleSubmitAdmin" class="space-y-7">
+            
+            <!-- PASSO 1: COSA VUOI PROTEGGERE -->
+            <div 
+              class="p-5 rounded-2xl border-2 transition-all space-y-3"
+              :class="[focusedField === 'model_class' ? 'border-amber-400 bg-amber-50/40 ring-4 ring-amber-400/10' : 'border-slate-200 bg-slate-50/70']"
+            >
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                  <span class="w-7 h-7 rounded-xl bg-amber-500 text-white font-black text-xs flex items-center justify-center shadow-sm">1</span>
+                  <label class="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                    Quali schede o dati vuoi proteggere?
+                  </label>
+                </div>
+                <span class="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md">
+                  Dato Principale
+                </span>
+              </div>
+              
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Scegli la tipologia di scheda su cui applicare il filtro (es. le <b>Anagrafiche</b>, le <b>Fatture</b>, i <b>Documenti</b> o i <b>Contratti</b>).
+              </p>
+
+              <select 
+                v-model="form.model_class" 
+                @focus="focusedField = 'model_class'"
+                @blur="focusedField = null"
+                @change="autoFillFields" 
+                class="w-full border-2 border-slate-300 rounded-xl p-3 bg-white text-sm font-semibold text-slate-800 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none shadow-sm transition"
+                required
+              >
+                <option value="">-- Seleziona la Scheda da Proteggere --</option>
+                <option v-for="m in availableModels" :key="m.class" :value="m.class">
+                  {{ m.name }} ({{ m.class }})
+                </option>
+              </select>
+            </div>
+
+            <!-- PASSO 2: CRITERIO DI FILTRO -->
+            <div 
+              class="p-5 rounded-2xl border-2 transition-all space-y-3"
+              :class="[focusedField === 'scope_filter' ? 'border-emerald-400 bg-emerald-50/40 ring-4 ring-emerald-400/10' : 'border-slate-200 bg-slate-50/70']"
+            >
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                  <span class="w-7 h-7 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center shadow-sm">2</span>
+                  <label class="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                    In base a cosa viene autorizzato l'operatore?
+                  </label>
+                </div>
+                <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
+                  Criterio di Competenza
+                </span>
+              </div>
+              
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Scegli la caratteristica o l'appartenenza che decide chi può vedere la scheda (es. l'<b>Ufficio</b>, la <b>Sede</b>, o la <b>Qualifica</b>).
+              </p>
+
+              <select 
+                v-model="form.scope_filter" 
+                @focus="focusedField = 'scope_filter'"
+                @blur="focusedField = null"
+                @change="autoFillFields" 
+                class="w-full border-2 border-slate-300 rounded-xl p-3 bg-white text-sm font-semibold text-slate-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none shadow-sm transition"
+                required
+              >
+                <option value="">-- Seleziona il Criterio (es. Ufficio, Sede, Ruolo...) --</option>
+                <option v-for="m in availableModels" :key="m.class" :value="m.class">
+                  {{ m.name }} ({{ m.class }})
+                </option>
+              </select>
+            </div>
+
+            <!-- PASSO 3: SCHEMA VISIVO E COLLEGAMENTO DATI -->
+            <div class="p-5 bg-slate-50/80 rounded-2xl border-2 border-slate-200 space-y-6">
+              <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                <div class="flex items-center gap-2.5">
+                  <span class="w-7 h-7 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-sm">3</span>
+                  <label class="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                    Dove si trova l'informazione nel database?
+                  </label>
+                </div>
+                <span class="text-xs text-slate-500 font-medium">Struttura Collegamento</span>
+              </div>
+
+              <!-- SCELTA DEL TIPO -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div 
+                  @click="setPivotMode(false)"
+                  :class="[!form.has_pivot ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20 text-indigo-950 shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300']"
+                  class="p-4 border-2 rounded-2xl cursor-pointer transition-all flex flex-col justify-between space-y-2.5 select-none"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-extrabold uppercase tracking-wide">Direttamente nella scheda</span>
+                    <span v-if="!form.has_pivot" class="w-3 h-3 rounded-full bg-indigo-600 ring-2 ring-indigo-200"></span>
+                  </div>
+                  <p class="text-xs text-slate-600 leading-relaxed">
+                    La scheda contiene già al suo interno il riferimento (es. ogni persona ha <b>1 solo ufficio</b> scritto nella sua scheda).
+                  </p>
+                  <div class="text-[10px] font-bold text-indigo-700 bg-indigo-100/70 px-2 py-1 rounded-lg self-start">
+                    1 Valore per scheda (1:N)
+                  </div>
+                </div>
+
+                <div 
+                  @click="setPivotMode(true)"
+                  :class="[form.has_pivot ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20 text-indigo-950 shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300']"
+                  class="p-4 border-2 rounded-2xl cursor-pointer transition-all flex flex-col justify-between space-y-2.5 select-none"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-extrabold uppercase tracking-wide">In una tabella di collegamento separata</span>
+                    <span v-if="form.has_pivot" class="w-3 h-3 rounded-full bg-indigo-600 ring-2 ring-indigo-200"></span>
+                  </div>
+                  <p class="text-xs text-slate-600 leading-relaxed">
+                    Il collegamento avviene tramite un elenco separato (es. una persona può avere <b>più qualifiche o più uffici</b> contemporaneamente).
+                  </p>
+                  <div class="text-[10px] font-bold text-indigo-700 bg-indigo-100/70 px-2 py-1 rounded-lg self-start">
+                    Valori multipli (Tabella Ponte / N:M)
+                  </div>
+                </div>
+              </div>
+
+              <!-- DIAGRAMMA GRAFICO CON ILLUMINAZIONE A COLORI CORRISPONDENTI -->
+              <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3">
+                <div class="flex items-center justify-between text-xs text-slate-500 font-medium">
+                  <span class="flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    Mappa visiva dei collegamenti (clicca o posizionati sui campi sotto per illuminarli):
+                  </span>
+                </div>
+
+                <!-- SCHEMA DIRETTO -->
+                <div v-if="!form.has_pivot" class="flex flex-col sm:flex-row items-center gap-3">
+                  <div 
+                    class="flex-1 w-full p-3 rounded-xl border-2 transition-all space-y-1"
+                    :class="[focusedField === 'model_class' ? 'border-amber-400 bg-amber-50 shadow-md' : 'border-amber-200 bg-amber-50/40']"
+                  >
+                    <div class="text-[11px] font-bold text-amber-900 uppercase">Tabella Scheda Protetta</div>
+                    <div class="text-xs font-extrabold text-amber-800">{{ targetTableName }}</div>
+                  </div>
+
+                  <div class="text-slate-400 font-bold text-lg hidden sm:block">➜</div>
+
+                  <div 
+                    class="flex-1 w-full p-3 rounded-xl border-2 transition-all space-y-1"
+                    :class="[focusedField === 'filter_key' ? 'border-emerald-400 bg-emerald-50 shadow-md ring-2 ring-emerald-400/20' : 'border-emerald-200 bg-emerald-50/40']"
+                  >
+                    <div class="text-[11px] font-bold text-emerald-900 uppercase">Colonna del Filtro</div>
+                    <div class="text-xs font-mono font-bold text-emerald-800">{{ form.filter_key || 'seleziona...' }}</div>
+                  </div>
+
+                  <div class="text-slate-400 font-bold text-lg hidden sm:block">➜</div>
+
+                  <div class="flex-1 w-full p-3 rounded-xl border-2 border-indigo-200 bg-indigo-50/40 space-y-1">
+                    <div class="text-[11px] font-bold text-indigo-900 uppercase">Permessi Utente</div>
+                    <div class="text-xs font-bold text-indigo-800">ID Autorizzati [1, 2...]</div>
+                  </div>
+                </div>
+
+                <!-- SCHEMA PIVOT (N:M) -->
+                <div v-else class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div 
+                    class="p-3 rounded-xl border-2 transition-all space-y-1"
+                    :class="[focusedField === 'target_foreign_key' || focusedField === 'model_class' ? 'border-amber-400 bg-amber-50 shadow-md ring-2 ring-amber-400/20' : 'border-amber-200 bg-amber-50/40']"
+                  >
+                    <div class="text-[10px] font-bold text-amber-900 uppercase">1. Scheda Protetta</div>
+                    <div class="text-xs font-bold text-amber-800">{{ targetTableName }}</div>
+                    <div class="text-[10px] text-amber-700 font-mono bg-white px-1.5 py-0.5 rounded border border-amber-200">
+                      Campo: {{ form.target_foreign_key || 'id (Predefinito)' }}
+                    </div>
+                  </div>
+
+                  <div 
+                    class="p-3 rounded-xl border-2 transition-all space-y-1.5"
+                    :class="[focusedField === 'pivot_table' || focusedField === 'pivot_foreign_key' || focusedField === 'filter_key' ? 'border-sky-400 bg-sky-50 shadow-md ring-2 ring-sky-400/20' : 'border-sky-200 bg-sky-50/40']"
+                  >
+                    <div class="text-[10px] font-bold text-sky-900 uppercase">2. Tabella di Collegamento</div>
+                    <div class="text-xs font-bold text-sky-800">{{ form.pivot_table || 'tabella_collegamento' }}</div>
+                    <div class="text-[10px] text-sky-800 font-mono bg-white p-1 rounded border border-sky-200 space-y-0.5">
+                      <div :class="[focusedField === 'pivot_foreign_key' ? 'text-amber-700 font-bold' : '']">🔗 Verso Scheda: {{ form.pivot_foreign_key || '...' }}</div>
+                      <div :class="[focusedField === 'filter_key' ? 'text-emerald-700 font-bold' : '']">🎯 Verso Filtro: {{ form.filter_key || '...' }}</div>
+                    </div>
+                  </div>
+
+                  <div 
+                    class="p-3 rounded-xl border-2 transition-all space-y-1"
+                    :class="[focusedField === 'scope_filter' ? 'border-emerald-400 bg-emerald-50 shadow-md' : 'border-emerald-200 bg-emerald-50/40']"
+                  >
+                    <div class="text-[10px] font-bold text-emerald-900 uppercase">3. Criterio Autorizzato</div>
+                    <div class="text-xs font-bold text-emerald-800">{{ formatClassName(form.scope_filter) || 'Criterio' }}</div>
+                    <div class="text-[10px] text-emerald-700 font-mono bg-white px-1.5 py-0.5 rounded border border-emerald-200">
+                      ID Operatore [1, 4, 12...]
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CAMPI DIRETTO -->
+              <div v-if="!form.has_pivot" class="space-y-2 pt-2">
+                <div class="flex items-center justify-between">
+                  <label class="block text-xs font-extrabold text-slate-800">
+                    Nome della colonna di riferimento presente nella scheda
+                  </label>
+                  <span class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                    Colonna del Filtro
+                  </span>
+                </div>
+                <p class="text-xs text-slate-500">
+                  Scrivi il nome esatto della colonna che contiene l'ufficio o la categoria dentro la tabella della scheda (es. <code>ufficio_id</code> o <code>sede_id</code>).
+                </p>
+                <input 
+                  type="text" 
+                  v-model="form.filter_key" 
+                  @focus="focusedField = 'filter_key'"
+                  @blur="focusedField = null"
+                  class="w-full border-2 border-slate-300 rounded-xl p-3 text-xs font-mono font-bold text-slate-900 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-sm" 
+                  placeholder="es. ufficio_id" 
+                  required 
+                />
+              </div>
+
+              <!-- CAMPI PIVOT -->
+              <div v-else class="space-y-5 pt-2">
+                <div 
+                  class="p-4 rounded-xl border-2 transition-all space-y-2"
+                  :class="[focusedField === 'pivot_table' ? 'border-sky-400 bg-sky-50/40' : 'border-slate-200 bg-white']"
+                >
+                  <div class="flex items-center justify-between">
+                    <label class="block text-xs font-extrabold text-slate-900">
+                      A. Nome della Tabella di Collegamento
+                    </label>
+                    <span class="text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-md">
+                      Tabella Ponte
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-500">
+                    Il nome della tabella che memorizza le associazioni multiple (es. <code>anagrafica_ufficio</code> o <code>utente_ruolo</code>).
+                  </p>
+                  <input 
+                    type="text" 
+                    v-model="form.pivot_table" 
+                    @focus="focusedField = 'pivot_table'"
+                    @blur="focusedField = null"
+                    class="w-full border-2 border-slate-300 rounded-xl p-2.5 text-xs font-mono font-bold text-slate-900 bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 shadow-sm" 
+                    placeholder="es. anagrafica_ufficio" 
+                    required 
+                  />
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div 
+                    class="p-4 rounded-xl border-2 transition-all space-y-2"
+                    :class="[focusedField === 'pivot_foreign_key' ? 'border-amber-400 bg-amber-50/40' : 'border-slate-200 bg-white']"
+                  >
+                    <div class="flex items-center justify-between">
+                      <label class="block text-xs font-extrabold text-slate-900">
+                        B. Colonna che punta alla Scheda
+                      </label>
+                      <span class="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                        Rif. Scheda
+                      </span>
+                    </div>
+                    <p class="text-[11px] text-slate-500">
+                      Il campo nella tabella ponte che identifica la scheda (es. <code>anagrafica_id</code>).
+                    </p>
+                    <input 
+                      type="text" 
+                      v-model="form.pivot_foreign_key" 
+                      @focus="focusedField = 'pivot_foreign_key'"
+                      @blur="focusedField = null"
+                      class="w-full border-2 border-slate-300 rounded-xl p-2.5 text-xs font-mono font-bold text-slate-900 bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 shadow-sm" 
+                      placeholder="es. anagrafica_id" 
+                      required 
+                    />
+                  </div>
+
+                  <div 
+                    class="p-4 rounded-xl border-2 transition-all space-y-2"
+                    :class="[focusedField === 'filter_key' ? 'border-emerald-400 bg-emerald-50/40' : 'border-slate-200 bg-white']"
+                  >
+                    <div class="flex items-center justify-between">
+                      <label class="block text-xs font-extrabold text-slate-900">
+                        C. Colonna che contiene il Filtro
+                      </label>
+                      <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                        Rif. Filtro
+                      </span>
+                    </div>
+                    <p class="text-[11px] text-slate-500">
+                      Il campo nella tabella ponte che contiene l'ufficio/qualifica (es. <code>ufficio_id</code>).
+                    </p>
+                    <input 
+                      type="text" 
+                      v-model="form.filter_key" 
+                      @focus="focusedField = 'filter_key'"
+                      @blur="focusedField = null"
+                      class="w-full border-2 border-slate-300 rounded-xl p-2.5 text-xs font-mono font-bold text-slate-900 bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-sm" 
+                      placeholder="es. ufficio_id" 
+                      required 
+                    />
+                  </div>
+                </div>
+
+                <div 
+                  class="p-4 rounded-xl border-2 transition-all space-y-2"
+                  :class="[focusedField === 'target_foreign_key' ? 'border-amber-400 bg-amber-50/40' : 'border-slate-200 bg-white']"
+                >
+                  <div class="flex items-center justify-between">
+                    <label class="block text-xs font-extrabold text-slate-900">
+                      D. Identificativo Personalizzato della Scheda (Opzionale)
+                    </label>
+                    <span class="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                      Default: 'id'
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-500 leading-relaxed">
+                    Lascia vuoto questo campo se la scheda usa il normale numero identificativo progressivo (<code>id</code>). Compilalo solo se il collegamento usa un codice speciale (es. <code>codice_fiscale</code>).
+                  </p>
+                  <input 
+                    type="text" 
+                    v-model="form.target_foreign_key" 
+                    @focus="focusedField = 'target_foreign_key'"
+                    @blur="focusedField = null"
+                    class="w-full border-2 border-slate-300 rounded-xl p-2 text-xs font-mono bg-slate-50 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20" 
+                    placeholder="Lascia vuoto per usare il normale 'id'" 
+                  />
+                </div>
+              </div>
+
+              <!-- COLONNA GERARCHIA AD ALBERO -->
+              <div class="space-y-2 pt-3 border-t border-slate-200">
+                <div class="flex items-center justify-between">
+                  <label class="block text-xs font-extrabold text-slate-800">
+                    Colonna per la Gerarchia ad Albero (Opzionale)
+                  </label>
+                  <span class="text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                    Risoluzione Figli
+                  </span>
+                </div>
+                <p class="text-xs text-slate-500">
+                  Se questo criterio ha una gerarchia (figli) e la colonna padre non si chiama <code>padre_id</code>, scrivi qui il suo nome (es. <code>parent_id</code>, <code>id_padre</code>).
+                </p>
+                <input 
+                  type="text" 
+                  v-model="form.parent_column" 
+                  class="w-full border-2 border-slate-300 rounded-xl p-2.5 text-xs font-mono bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm" 
+                  placeholder="Lascia vuoto se usa 'padre_id' (Default)" 
+                />
+              </div>
+
+              <!-- FILTRO CONDIZIONALE EXTRA -->
+              <div class="space-y-2.5 pt-3 border-t border-slate-200">
+                <div class="flex items-center justify-between">
+                  <label class="block text-xs font-extrabold text-slate-800">
+                    Condizione Aggiuntiva Fissa (Opzionale)
+                  </label>
+                  <span class="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                    Filtro Extra
+                  </span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <button type="button" @click="setJsonPreset('stato', 'attivo')" class="text-xs px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition">
+                    + Solo Attivi: {"stato": "attivo"}
+                  </button>
+                  <button type="button" @click="setJsonPreset('visibile', 1)" class="text-xs px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition">
+                    + Solo Visibili: {"visibile": 1}
+                  </button>
+                </div>
+                <textarea 
+                  v-model="rawAdditionalWhere" 
+                  rows="2" 
+                  class="w-full border-2 border-slate-300 rounded-xl p-2.5 text-xs font-mono bg-white focus:ring-2 focus:ring-indigo-500 shadow-sm" 
+                  placeholder='es. {"stato": "attivo"}' 
+                  @input="validateJson"
+                ></textarea>
+              </div>
+
+            </div>
+
+            <!-- ANTEPRIMA IN ITALIANO SEMPLICE -->
+            <div v-if="form.model_class && form.scope_filter" class="p-4 bg-indigo-50/70 rounded-2xl border border-indigo-100 text-indigo-950 space-y-1.5">
+              <div class="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-indigo-800">
+                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Come funzionerà per gli utenti:
+              </div>
+              <p class="text-xs leading-relaxed text-slate-700">
+                Ogni volta che un operatore cerca o visualizza le schede <strong class="text-amber-900 font-bold bg-amber-100 px-1.5 py-0.5 rounded">{{ formatClassName(form.model_class) }}</strong>, 
+                il sistema mostrerà soltanto i record associati al suo <strong class="text-emerald-900 font-bold bg-emerald-100 px-1.5 py-0.5 rounded">{{ formatClassName(form.scope_filter) }}</strong> di competenza.
+              </p>
+            </div>
+
+            <!-- PULSANTE SALVA -->
+            <button 
+              type="submit" 
+              class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold rounded-2xl p-4 text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <span>Attiva Regola di Sicurezza</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- ELENCO REGOLE ATTIVE -->
+        <div class="lg:col-span-5 space-y-6">
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-5 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
+              <div>
+                <h3 class="font-bold text-slate-900 text-sm">Regole Attualmente Operative</h3>
+                <p class="text-xs text-slate-400">Regole attive per la protezione dei dati</p>
+              </div>
+              <span class="text-xs bg-indigo-100 text-indigo-700 font-bold px-2.5 py-1 rounded-lg">
+                {{ definitions.length }}
+              </span>
+            </div>
+
+            <div class="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
+              <div v-for="def in definitions" :key="def.id" class="p-4 hover:bg-slate-50 transition space-y-2.5">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="space-y-1">
+                    <div class="text-sm font-bold text-slate-900 flex items-center gap-2 flex-wrap">
+                      <span class="bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-md font-extrabold">{{ formatClassName(def.model_class) }}</span>
+                      <span v-if="def.pivot_table" class="px-2 py-0.5 text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200 rounded-md">
+                        Collegamento Esterno
+                      </span>
+                      <span v-else class="px-2 py-0.5 text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md">
+                        Collegamento Diretto
+                      </span>
+                    </div>
+                    <p class="text-xs text-slate-600">
+                      Filtrato per: <strong class="text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-bold">{{ formatClassName(def.scope_filter) }}</strong>
+                    </p>
+                  </div>
+                  <button @click="deleteDefinition(def.id)" class="text-xs text-rose-600 hover:text-rose-700 font-medium bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg transition">
+                    Rimuovi
+                  </button>
+                </div>
+                <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1 font-sans">
+                  <div><strong>Scheda protetta:</strong> <span class="font-mono">{{ def.model_class }}</span></div>
+                  <div><strong>Criterio:</strong> <span class="font-mono">{{ def.scope_filter }}</span></div>
+                  <div><strong>Campo filtro:</strong> <span class="font-mono font-bold text-emerald-800">{{ def.filter_key }}</span></div>
+                  <div v-if="def.parent_column"><strong>Colonna albero:</strong> <span class="font-mono text-indigo-700 font-bold">{{ def.parent_column }}</span></div>
+                  <div v-if="def.pivot_table"><strong>Tabella ponte:</strong> <span class="font-mono text-sky-800">{{ def.pivot_table }}</span> (rif. scheda: <span class="font-mono text-amber-800">{{ def.pivot_foreign_key }}</span>)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ANTEPRIMA QUERY SQL IN BASSO -->
+      <div class="bg-slate-900 text-slate-100 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+        <div class="p-5 sm:p-6 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-950/60">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2.5">
+              <span class="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg border border-indigo-500/30">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+              </span>
+              <h3 class="font-bold text-base text-white tracking-tight">Anteprima della Query Applicata Automaticamente</h3>
+            </div>
+            <p class="text-xs text-slate-400">
+              Ecco come il sistema traduce visivamente questa regola nella query finale al database.
+            </p>
+          </div>
+
+          <div class="flex items-center gap-1.5 bg-slate-800/90 p-1 rounded-xl border border-slate-700/60">
+            <button 
+              type="button" 
+              @click="activeQueryTab = 'select'"
+              :class="[activeQueryTab === 'select' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white']"
+              class="px-3 py-1.5 rounded-lg text-xs transition"
+            >
+              1. Query di Ricerca (SELECT)
+            </button>
+            <button 
+              type="button" 
+              @click="activeQueryTab = 'write'"
+              :class="[activeQueryTab === 'write' ? 'bg-indigo-600 text-white font-semibold' : 'text-slate-400 hover:text-white']"
+              class="px-3 py-1.5 rounded-lg text-xs transition"
+            >
+              2. Controllo Scrittura / Delete
+            </button>
+          </div>
+        </div>
+
+        <div class="p-6 space-y-4">
+          <div v-if="activeQueryTab === 'select'" class="space-y-3">
+            <div class="bg-black/60 rounded-xl p-4 font-mono text-xs text-indigo-300 border border-slate-800 overflow-x-auto leading-relaxed whitespace-pre-wrap">
+<span class="text-pink-400 font-bold">SELECT</span> * <span class="text-pink-400 font-bold">FROM</span> <span class="text-amber-300 font-semibold" :class="[focusedField === 'model_class' ? 'bg-amber-400/30 px-1 rounded' : '']">{{ targetTableName }}</span>
+<span class="text-pink-400 font-bold">WHERE</span> <span class="text-slate-400">(</span>
+<span v-if="!form.has_pivot">  <span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-emerald-400 font-bold" :class="[focusedField === 'filter_key' ? 'bg-emerald-400/30 px-1 rounded' : '']">{{ form.filter_key || 'colonna_filtro' }}</span> <span class="text-pink-400 font-bold">IN</span> (<span class="text-emerald-300 font-semibold">:elenco_id_autorizzati_utente</span>)<span v-if="hasAdditionalWhereClause"><br>  <span class="text-pink-400 font-bold">AND</span> <span class="text-sky-300">{{ additionalWhereSql }}</span></span></span>
+<span v-else>  <span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-amber-300 font-bold" :class="[focusedField === 'target_foreign_key' ? 'bg-amber-400/30 px-1 rounded' : '']">{{ form.target_foreign_key || 'id' }}</span> <span class="text-pink-400 font-bold">IN</span> (
+    <span class="text-pink-400 font-bold">SELECT</span> <span class="text-amber-300 font-semibold" :class="[focusedField === 'pivot_foreign_key' ? 'bg-amber-400/30 px-1 rounded' : '']">{{ form.pivot_foreign_key || 'colonna_scheda' }}</span> 
+    <span class="text-pink-400 font-bold">FROM</span> <span class="text-sky-300 font-bold" :class="[focusedField === 'pivot_table' ? 'bg-sky-400/30 px-1 rounded' : '']">{{ form.pivot_table || 'tabella_ponte' }}</span> 
+    <span class="text-pink-400 font-bold">WHERE</span> <span class="text-sky-300">{{ form.pivot_table || 'tabella_ponte' }}</span>.<span class="text-emerald-400 font-bold" :class="[focusedField === 'filter_key' ? 'bg-emerald-400/30 px-1 rounded' : '']">{{ form.filter_key || 'colonna_filtro' }}</span> <span class="text-pink-400 font-bold">IN</span> (<span class="text-emerald-300 font-semibold">:elenco_id_autorizzati_utente</span>)<span v-if="hasAdditionalWhereClause"><br>    <span class="text-pink-400 font-bold">AND</span> <span class="text-sky-300">{{ additionalWhereSql }}</span></span>
+  )</span>
+<span class="text-slate-400">)</span>
+            </div>
+          </div>
+
+          <div v-else class="space-y-3">
+            <div class="bg-black/60 rounded-xl p-4 font-mono text-xs text-amber-200 border border-slate-800 overflow-x-auto leading-relaxed whitespace-pre-wrap">
+<span v-if="!form.has_pivot">// Verifica se il valore appartiene alle competenze dell'utente:
+if (!in_array($record-><span class="text-emerald-300 font-bold">{{ form.filter_key || 'colonna_filtro' }}</span>, $idAutorizzatiUtente)) {
+    throw ValidationException::withMessages(['authorization' => 'Non puoi modificare questo record.']);
+}</span>
+<span v-else>// Verifica associazione su tabella ponte:
+$autorizzato = DB::table('<span class="text-sky-300 font-bold">{{ form.pivot_table || 'tabella_ponte' }}</span>')
+    ->where('<span class="text-amber-300 font-bold">{{ form.pivot_foreign_key || 'colonna_scheda' }}</span>', $record->{{ form.target_foreign_key ? form.target_foreign_key : 'getKey()' }})
+    ->whereIn('<span class="text-emerald-300 font-bold">{{ form.filter_key || 'colonna_filtro' }}</span>', $idAutorizzatiUtente)
+    ->exists();</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- VISTA 2: UTENTI -->
+    <main v-else class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Gestione Competenze e Filtri Utente</h1>
+            <p class="text-xs sm:text-sm text-slate-500 font-medium">Assegna e gestisci i perimetri di autorizzazione per ciascun operatore.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+          <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">1. Seleziona Operatore</h3>
+          <div v-if="selectedUser" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold">
+            Operatore: {{ selectedUser.name }}
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div 
+            v-for="u in mockUsers" 
+            :key="u.id"
+            @click="selectUser(u)"
+            :class="[selectedUser && selectedUser.id === u.id ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-500/20 text-indigo-950 font-semibold' : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700']"
+            class="p-3.5 border rounded-xl cursor-pointer transition flex items-center justify-between"
+          >
+            <div>
+              <div class="text-sm font-bold">{{ u.name }}</div>
+              <div class="text-[11px] text-slate-500">{{ u.role }}</div>
+            </div>
+            <span v-if="selectedUser && selectedUser.id === u.id" class="text-xs text-indigo-600 font-bold">Attivo ✓</span>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="selectedUser" class="space-y-6">
+        <!-- TABELLA FILTRI ATTIVI -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+            <h3 class="text-base font-bold text-slate-900">Filtri Attivi per {{ selectedUser.name }}</h3>
+            <span class="text-xs font-semibold px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg border border-slate-200">
+              {{ currentUserFilters.length }} Filtri
+            </span>
+          </div>
+
+          <div v-if="currentUserFilters.length === 0" class="p-8 text-center text-slate-400 text-sm">
+            Nessun filtro attivo per questo operatore al momento. Utilizza il modulo qui sotto per aggiungerne uno.
+          </div>
+
+          <div v-else class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  <th class="px-6 py-3.5">Criterio (Entità)</th>
+                  <th class="px-6 py-3.5">Codice / ID Autorizzato</th>
+                  <th class="px-6 py-3.5">Gruppo Logico</th>
+                  <th class="px-6 py-3.5">Gerarchia Albero</th>
+                  <th class="px-6 py-3.5 text-right">Azioni</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-sm text-slate-700">
+                <tr v-for="f in currentUserFilters" :key="f.id" class="hover:bg-slate-50/70 transition">
+                  <td class="px-6 py-4 font-bold text-slate-900">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                      {{ formatClassName(f.filterable_type) }}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 font-mono font-bold text-slate-900">{{ f.filterable_id }}</td>
+                  <td class="px-6 py-4">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      Gruppo {{ f.group }}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <div v-if="f.include_children" class="flex flex-col items-start gap-1">
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        ✓ Inclusi Figli
+                      </span>
+                      <span class="text-[10px] font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                        Colonna: <b class="text-indigo-700">{{ f.parent_column || 'padre_id (Default)' }}</b>
+                      </span>
+                    </div>
+                    <span 
+                      v-else
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-400"
+                    >
+                      Solo Questo Nodo
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <button @click="deleteUserFilter(f.id)" class="text-xs text-rose-600 hover:text-rose-700 font-bold bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition">
+                      Rimuovi
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- FORM PER AGGIUNGERE UN NUOVO FILTRO -->
+        <div class="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Aggiungi Parametro di Competenza per {{ selectedUser.name }}</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Assegna un nuovo ufficio, ruolo o qualifica autorizzata a questo operatore.</p>
+            </div>
+            <span class="text-xs font-bold px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100">
+              Nuovo Filtro
+            </span>
+          </div>
+
+          <form @submit.prevent="handleSubmitUserFilter" class="space-y-5">
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-start">
+              
+              <!-- 1. Criterio -->
+              <div class="sm:col-span-5 space-y-1.5">
+                <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide">
+                  1. Cosa vuoi filtrare? (Criterio)
+                </label>
+                <select 
+                  v-model="userForm.scope_filter" 
+                  class="w-full border-2 border-slate-300 rounded-xl p-3 bg-slate-50/70 text-sm font-semibold text-slate-800 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition shadow-sm"
+                  required
+                >
+                  <option value="">-- Seleziona Ambito / Criterio --</option>
+                  <option v-for="def in definitions" :key="def.id" :value="def.scope_filter">
+                    {{ formatClassName(def.scope_filter) }} (per {{ formatClassName(def.model_class) }})
+                  </option>
+                </select>
+                <p class="text-[11px] text-slate-400">Entità a cui appartiene il permesso.</p>
+              </div>
+
+              <!-- 2. ID Valore -->
+              <div class="sm:col-span-3 space-y-1.5">
+                <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide">
+                  2. ID Valore / Codice
+                </label>
+                <input 
+                  type="text" 
+                  v-model="userForm.filterable_id" 
+                  placeholder="es. 1, 5, UFF-01" 
+                  class="w-full border-2 border-slate-300 rounded-xl p-3 text-sm font-mono font-bold text-slate-900 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition shadow-sm" 
+                  required 
+                />
+                <p class="text-[11px] text-slate-400">ID del nodo o codice consentito.</p>
+              </div>
+
+              <!-- 3. Gruppo -->
+              <div class="sm:col-span-2 space-y-1.5">
+                <label class="block text-xs font-bold text-slate-800 uppercase tracking-wide">
+                  3. Gruppo
+                </label>
+                <input 
+                  type="number" 
+                  v-model.number="userForm.group" 
+                  min="1" 
+                  class="w-full border-2 border-slate-300 rounded-xl p-3 text-sm font-mono font-bold text-slate-900 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition shadow-sm" 
+                  required 
+                />
+                <p class="text-[11px] text-slate-400">Stesso gruppo = AND.</p>
+              </div>
+
+              <!-- 4. Pulsante Salva -->
+              <div class="sm:col-span-2 sm:pt-7">
+                <button 
+                  type="submit" 
+                  class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold rounded-xl p-3 text-sm shadow-md hover:shadow-lg transition flex items-center justify-center gap-1.5"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                  <span>Aggiungi Filtro</span>
+                </button>
+              </div>
+
+            </div>
+
+            <!-- OPZIONE INCLUDI FIGLI -->
+            <div class="pt-3 border-t border-slate-100 space-y-3">
+              <div class="flex items-center justify-between">
+                <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input 
+                    type="checkbox" 
+                    v-model="userForm.include_children" 
+                    class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500" 
+                  />
+                  <span class="text-xs font-semibold text-slate-700">
+                    Includi automaticamente tutti i sotto-elementi (gerarchia ad albero ricorsiva)
+                  </span>
+                </label>
+                <span class="text-[11px] text-slate-400 hidden sm:inline">
+                  Risolve i nodi discendenti dell'albero
+                </span>
+              </div>
+
+              <!-- CAMPO CHE APPARE QUANDO LA CHECKBOX È SELEZIONATA -->
+              <div v-if="userForm.include_children" class="pl-6 pt-1 space-y-1 bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100 transition-all duration-200">
+                <div class="flex items-center justify-between">
+                  <label class="block text-xs font-bold text-slate-800">
+                    Nome della colonna genitore (Opzionale)
+                  </label>
+                  <span class="text-[10px] font-bold text-indigo-600 bg-white px-2 py-0.5 rounded border border-indigo-200">
+                    Default: padre_id o rilevata da DB
+                  </span>
+                </div>
+                <p class="text-[11px] text-slate-500">
+                  Se la colonna che collega i nodi al genitore non si chiama <code>padre_id</code>, scrivi qui il nome esatto (es. <code>parent_id</code>, <code>id_padre</code>).
+                </p>
+                <input 
+                  type="text" 
+                  v-model="userForm.parent_column" 
+                  placeholder="Lascia vuoto per usare il default ('padre_id')" 
+                  class="w-full border border-slate-300 rounded-lg p-2.5 text-xs font-mono font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 transition" 
+                />
+              </div>
+            </div>
+          </form>
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script>
+    const { createApp, ref, reactive, computed } = Vue;
+
+    createApp({
+      setup() {
+        const currentView = ref('admin');
+        const activeQueryTab = ref('select');
+        const focusedField = ref(null);
+        const rawAdditionalWhere = ref('');
+        const jsonError = ref(false);
+
+        const availableModels = ref([
+          { class: 'App\\Models\\Anagrafica', name: 'Anagrafica' },
+          { class: 'App\\Models\\Ufficio',     name: 'Ufficio' },
+          { class: 'App\\Models\\Qualifica',   name: 'Qualifica' },
+          { class: 'App\\Models\\Organico',    name: 'Organico' },
+          { class: 'App\\Models\\Pratica',     name: 'Pratica' }
+        ]);
+
+        const definitions = ref([
+          {
+            id: 1,
+            model_class: 'App\\Models\\Anagrafica',
+            scope_filter: 'App\\Models\\Ufficio',
+            has_pivot: false,
+            pivot_table: null,
+            pivot_foreign_key: null,
+            target_foreign_key: null,
+            filter_key: 'ufficio_id',
+            additional_where: { stato: 'attivo' }
+          },
+          {
+            id: 2,
+            model_class: 'App\\Models\\Anagrafica',
+            scope_filter: 'App\\Models\\Qualifica',
+            has_pivot: true,
+            pivot_table: 'anagrafica_qualifica',
+            pivot_foreign_key: 'anagrafica_id',
+            target_foreign_key: null,
+            filter_key: 'qualifica_id',
+            additional_where: null
+          }
+        ]);
+
+        const mockUsers = ref([
+          { id: 1, name: 'Mario Rossi', role: 'Operatore Territoriale' },
+          { id: 2, name: 'Giulia Bianchi', role: 'Responsabile Risorse Umane' },
+          { id: 3, name: 'Luca Verdi', role: 'Amministratore Delegato' }
+        ]);
+
+        const selectedUser = ref(mockUsers.value[0]);
+
+        const userFilters = ref([
+          { id: 1, user_id: 1, filterable_type: 'App\\Models\\Ufficio', filterable_id: '5', group: 1, include_children: true },
+          { id: 2, user_id: 1, filterable_type: 'App\\Models\\Qualifica', filterable_id: '2', group: 1, include_children: false },
+          { id: 3, user_id: 2, filterable_type: 'App\\Models\\Ufficio', filterable_id: '1', group: 1, include_children: true }
+        ]);
+
+        const form = reactive({
+          model_class: 'App\\Models\\Anagrafica',
+          scope_filter: 'App\\Models\\Ufficio',
+          has_pivot: false,
+          pivot_table: '',
+          pivot_foreign_key: '',
+          target_foreign_key: '',
+          filter_key: 'ufficio_id',
+          parent_column: '',
+          additional_where: null
+        });
+
+        const formatClassName = (fullClass) => {
+          if (!fullClass) return '';
+          return fullClass.split('\\').pop();
+        };
+
+        const sampleModelName = computed(() => formatClassName(form.model_class) || 'Scheda');
+
+        const targetTableName = computed(() => {
+          const name = formatClassName(form.model_class).toLowerCase();
+          if (!name) return 'schede';
+          if (name.endsWith('a')) return name.slice(0, -1) + 'e';
+          if (name.endsWith('o')) return name.slice(0, -1) + 'i';
+          if (name.endsWith('e')) return name.slice(0, -1) + 'i';
+          return name + 's';
+        });
+
+        const hasAdditionalWhereClause = computed(() => {
+          return form.additional_where && Object.keys(form.additional_where).length > 0;
+        });
+
+        const additionalWhereSql = computed(() => {
+          if (!hasAdditionalWhereClause.value) return '';
+          const clauses = [];
+          for (const [key, value] of Object.entries(form.additional_where)) {
+            const formattedVal = typeof value === 'string' ? `'${value}'` : value;
+            clauses.push(`${key} = ${formattedVal}`);
+          }
+          return clauses.join(' AND ');
+        });
+
+        const setPivotMode = (isPivot) => {
+          form.has_pivot = isPivot;
+          autoFillFields();
+        };
+
+        const autoFillFields = () => {
+          const modelName = formatClassName(form.model_class).toLowerCase();
+          const scopeName = formatClassName(form.scope_filter).toLowerCase();
+
+          if (scopeName) {
+            form.filter_key = `${scopeName}_id`;
+          }
+
+          if (form.has_pivot && modelName && scopeName) {
+            const segments = [modelName, scopeName].sort();
+            form.pivot_table = `${segments[0]}_${segments[1]}`;
+            form.pivot_foreign_key = `${modelName}_id`;
+          } else if (!form.has_pivot) {
+            form.pivot_table = '';
+            form.pivot_foreign_key = '';
+            form.target_foreign_key = '';
+          }
+        };
+
+        const setJsonPreset = (key, val) => {
+          let current = {};
+          try {
+            if (rawAdditionalWhere.value) current = JSON.parse(rawAdditionalWhere.value);
+          } catch(e) {}
+          current[key] = val;
+          rawAdditionalWhere.value = JSON.stringify(current);
+          validateJson();
+        };
+
+        const validateJson = () => {
+          if (!rawAdditionalWhere.value || !rawAdditionalWhere.value.trim()) {
+            form.additional_where = null;
+            jsonError.value = false;
+            return;
+          }
+          try {
+            form.additional_where = JSON.parse(rawAdditionalWhere.value);
+            jsonError.value = false;
+          } catch(e) {
+            jsonError.value = true;
+          }
+        };
+
+        const handleSubmitAdmin = () => {
+          validateJson();
+          if (jsonError.value) return;
+
+          definitions.value.push({
+            id: Date.now(),
+            model_class: form.model_class,
+            scope_filter: form.scope_filter,
+            has_pivot: form.has_pivot,
+            pivot_table: form.has_pivot ? form.pivot_table : null,
+            pivot_foreign_key: form.has_pivot ? form.pivot_foreign_key : null,
+            target_foreign_key: form.has_pivot && form.target_foreign_key ? form.target_foreign_key : null,
+            filter_key: form.filter_key,
+            parent_column: form.parent_column ? form.parent_column : null,
+            additional_where: form.additional_where
+          });
+
+          alert("Regola attivata con successo!");
+        };
+
+        const deleteDefinition = (id) => {
+          if (confirm("Rimuovere questa regola?")) {
+            definitions.value = definitions.value.filter(d => d.id !== id);
+          }
+        };
+
+        const selectUser = (u) => {
+          selectedUser.value = u;
+        };
+
+        const currentUserFilters = computed(() => {
+          if (!selectedUser.value) return [];
+          return userFilters.value.filter(f => f.user_id === selectedUser.value.id);
+        });
+
+        const userForm = reactive({
+          scope_filter: '',
+          filterable_id: '',
+          group: 1,
+          include_children: false,
+          parent_column: ''
+        });
+
+        const handleSubmitUserFilter = () => {
+          if (!userForm.scope_filter || !userForm.filterable_id) {
+            alert("Compila tutti i campi obbligatori");
+            return;
+          }
+          userFilters.value.push({
+            id: Date.now(),
+            user_id: selectedUser.value.id,
+            filterable_type: userForm.scope_filter,
+            filterable_id: userForm.filterable_id,
+            group: userForm.group || 1,
+            include_children: userForm.include_children,
+            parent_column: userForm.parent_column ? userForm.parent_column : null
+          });
+          userForm.filterable_id = '';
+          userForm.include_children = false;
+          userForm.parent_column = '';
+        };
+
+        const deleteUserFilter = (id) => {
+          if (confirm("Vuoi davvero rimuovere questo filtro?")) {
+            userFilters.value = userFilters.value.filter(f => f.id !== id);
+          }
+        };
+
+        return {
+          currentView,
+          activeQueryTab,
+          focusedField,
+          availableModels,
+          definitions,
+          mockUsers,
+          selectedUser,
+          userFilters,
+          currentUserFilters,
+          form,
+          userForm,
+          rawAdditionalWhere,
+          jsonError,
+          sampleModelName,
+          targetTableName,
+          hasAdditionalWhereClause,
+          additionalWhereSql,
+          formatClassName,
+          setPivotMode,
+          autoFillFields,
+          setJsonPreset,
+          validateJson,
+          handleSubmitAdmin,
+          deleteDefinition,
+          selectUser,
+          handleSubmitUserFilter,
+          deleteUserFilter
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{
+    "name": "salvatorecervone/filterbymodel",
+    "description": "Package Laravel per la gestione dei filtri di sicurezza perimetrale basati sui modelli Eloquent e sulle competenze utente.",
+    "type": "library",
+    "license": "MIT",
+    "homepage": "https://github.com/SalvatoreCervone/filterbymodel",
+    "keywords": [
+        "laravel",
+        "eloquent",
+        "filter",
+        "security",
+        "row-level-security",
+        "permissions",
+        "vue3"
+    ],
+    "authors": [
+        {
+            "name": "Salvatore Cervone",
+            "email": "salvatore999@virgilio.it",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/SalvatoreCervone/filterbymodel/issues",
+        "source": "https://github.com/SalvatoreCervone/filterbymodel"
+    },
+    "require": {
+        "php": "^8.1",
+        "illuminate/support": "^10.0|^11.0|^12.0",
+        "illuminate/database": "^10.0|^11.0|^12.0",
+        "illuminate/http": "^10.0|^11.0|^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "SalvatoreCervone\\FilterByModel\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "SalvatoreCervone\\FilterByModel\\FilterByModelServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
