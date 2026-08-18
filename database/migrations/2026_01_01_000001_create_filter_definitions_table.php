@@ -21,41 +21,39 @@ return new class extends Migration
     {
         $tableName = $this->getTableName();
 
-        if (!Schema::hasTable($tableName)) {
-            Schema::create($tableName, function (Blueprint $table) {
-                $table->id();
+        Schema::create($tableName, function (Blueprint $table) {
+            $table->id();
 
-                // Chi subisce il filtro (es. 'App\Models\Invoice' o 'App\Models\Customer')
-                $table->string('model_class');
+            // Chi subisce il filtro (es. 'App\Models\Invoice' o 'App\Models\Customer')
+            $table->string('model_class');
 
-                // L'oggetto del filtro (es. 'App\Models\Branch' o 'App\Models\Department')
-                $table->string('scope_filter');
+            // L'oggetto del filtro (es. 'App\Models\Branch' o 'App\Models\Department')
+            $table->string('scope_filter');
 
-                // Campi per la relazione Pivot (N:M) - NULL se relazione diretta (1:N)
-                $table->string('pivot_table')->nullable()
-                      ->comment('Nome della tabella pivot. NULL se relazione diretta.');
-                $table->string('pivot_foreign_key')->nullable()
-                      ->comment('FK della risorsa target sulla pivot.');
-                $table->string('target_foreign_key')->nullable()
-                      ->comment('Colonna sulla tabella target usata per il collegamento (se vuota usa la PK).');
+            // Campi per la relazione Pivot (N:M) - NULL se relazione diretta (1:N)
+            $table->string('pivot_table')->nullable()
+                  ->comment('Nome della tabella pivot. NULL se relazione diretta.');
+            $table->string('pivot_foreign_key')->nullable()
+                  ->comment('FK della risorsa target sulla pivot.');
+            $table->string('target_foreign_key')->nullable()
+                  ->comment('Colonna sulla tabella target usata per il collegamento (se vuota usa la PK).');
 
-                // Colonna del codice del filtro (usata sia in caso diretto sia pivot)
-                $table->string('filter_key')
-                      ->comment('Colonna filtro sulla pivot o sulla tabella diretta.');
+            // Colonna del codice del filtro (usata sia in caso diretto sia pivot)
+            $table->string('filter_key')
+                  ->comment('Colonna filtro sulla pivot o sulla tabella diretta.');
 
-                // Colonna personalizzata per la gerarchia ad albero
-                $table->string('parent_column')->nullable()
-                      ->comment('Nome della colonna per la gerarchia ad albero (es. padre_id, parent_id).');
+            // Colonna personalizzata per la gerarchia ad albero
+            $table->string('parent_column')->nullable()
+                  ->comment('Nome della colonna per la gerarchia ad albero (es. padre_id, parent_id).');
 
-                // Condizioni extra opzionali in formato JSON
-                $table->json('additional_where')->nullable()
-                      ->comment('Condizioni di filtraggio aggiuntive in formato JSON.');
+            // Condizioni extra opzionali in formato JSON
+            $table->json('additional_where')->nullable()
+                  ->comment('Condizioni di filtraggio aggiuntive in formato JSON.');
 
-                $table->timestamps();
+            $table->timestamps();
 
-                $table->unique(['model_class', 'scope_filter']);
-            });
-        }
+            $table->unique(['model_class', 'scope_filter']);
+        });
     }
 
     /**

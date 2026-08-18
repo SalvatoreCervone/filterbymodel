@@ -149,22 +149,22 @@ class UserFilterController extends Controller
         $query = (string) $request->input('q', '');
         $tableName = $request->input('table');
         $modelClass = $request->input('model');
-        $idField = $request->input('id_field', 'id');
-        $labelField = $request->input('label_field', 'name');
+        $idField = $request->input('id_field', config('filterbymodel.user.primary_key', 'id'));
+        $labelField = $request->input('label_field', null);
         $limit = min((int) $request->input('limit', 20), 100);
 
         // Se non specificata la tabella, prova a ricavarla dal modello configurato o default 'users'
         $userModel = $modelClass ?: config('filterbymodel.user.model', 'App\\Models\\User');
 
         $dbQuery = null;
-        $resolvedTable = 'users';
+        $resolvedTable = config('filterbymodel.user.table', 'users');
 
         if (class_exists($userModel)) {
             $instance = new $userModel();
             $resolvedTable = $instance->getTable();
             $dbQuery = $instance->newQuery();
         } else {
-            $resolvedTable = $tableName ?: 'users';
+            $resolvedTable = $tableName ?: $resolvedTable;
             $dbQuery = \Illuminate\Support\Facades\DB::table($resolvedTable);
         }
 
@@ -185,21 +185,24 @@ class UserFilterController extends Controller
 
         // Filtro di ricerca se q è presente
         if (trim($query) !== '') {
-            $dbQuery->where(function ($qBuilder) use ($query, $idField, $labelField, $columns) {
+            $searchableFields = config('filterbymodel.user.searchable_fields', [
+                'name', 'cognome', 'nome', 'email', 'username', 'matricola', 'ragione_sociale', 'denominazione'
+            ]);
+
+            $dbQuery->where(function ($qBuilder) use ($query, $idField, $labelField, $columns, $searchableFields) {
                 // Ricerca su ID se numerico
                 if (is_numeric($query) && (empty($columns) || in_array($idField, $columns))) {
                     $qBuilder->orWhere($idField, $query);
                 }
 
-                // Ricerca su label_field specificato
-                if (empty($columns) || in_array($labelField, $columns)) {
+                // Ricerca su label_field specificato (se passato)
+                if ($labelField && (empty($columns) || in_array($labelField, $columns))) {
                     $qBuilder->orWhere($labelField, 'LIKE', "%{$query}%");
                 }
 
-                // Campi di fallback comuni
-                $searchableFields = ['name', 'email', 'username', 'nome', 'cognome', 'denominazione', 'ragione_sociale'];
+                // Ricerca su tutti i campi configurati/trovati
                 foreach ($searchableFields as $field) {
-                    if ($field !== $labelField && (empty($columns) || in_array($field, $columns))) {
+                    if (empty($columns) || in_array($field, $columns)) {
                         $qBuilder->orWhere($field, 'LIKE', "%{$query}%");
                     }
                 }
@@ -208,28 +211,9 @@ class UserFilterController extends Controller
 
         $results = $dbQuery->limit($limit)->get();
 
-        // Mappa i risultati garantendo id e label leggibile
-        $formatted = $results->map(function ($row) use ($idField, $labelField) {
-            $id = is_object($row) ? ($row->{$idField} ?? $row->id ?? null) : ($row[$idField] ?? $row['id'] ?? null);
-            
-            $label = '';
-            if (is_object($row)) {
-                $label = $row->{$labelField} ?? $row->name ?? $row->nome ?? $row->email ?? "Utente #{$id}";
-                // Aggiungi cognome se presente e non già incluso
-                if (isset($row->cognome) && $labelField === 'nome') {
-                    $label = trim("{$row->nome} {$row->cognome}");
-                }
-                $sublabel = $row->email ?? $row->username ?? (isset($row->id) ? "ID: {$id}" : '');
-            } else {
-                $label = $row[$labelField] ?? $row['name'] ?? $row['nome'] ?? $row['email'] ?? "Utente #{$id}";
-                $sublabel = $row['email'] ?? $row['username'] ?? "ID: {$id}";
-            }
-
-            return [
-                'id'       => $id,
-                'label'    => $label,
-                'sublabel' => $sublabel !== $label ? $sublabel : '',
-            ];
+        // Mappa i risultati formattando i campi utente
+        $formatted = $results->map(function ($row) use ($idField, $labelField, $columns) {
+            return $this->formatUserRow($row, $columns, $idField, $labelField);
         });
 
         return response()->json($formatted);
@@ -245,21 +229,21 @@ class UserFilterController extends Controller
         $statusFilter = $request->input('status', 'all'); // 'all', 'with_filters', 'without_filters'
         $tableName = $request->input('table');
         $modelClass = $request->input('model');
-        $idField = $request->input('id_field', 'id');
-        $labelField = $request->input('label_field', 'name');
+        $idField = $request->input('id_field', config('filterbymodel.user.primary_key', 'id'));
+        $labelField = $request->input('label_field', null);
         $userFk = config('filterbymodel.user.foreign_key', 'user_id');
 
         $userModel = $modelClass ?: config('filterbymodel.user.model', 'App\\Models\\User');
 
         $dbQuery = null;
-        $resolvedTable = 'users';
+        $resolvedTable = config('filterbymodel.user.table', 'users');
 
         if (class_exists($userModel)) {
             $instance = new $userModel();
             $resolvedTable = $instance->getTable();
             $dbQuery = $instance->newQuery();
         } else {
-            $resolvedTable = $tableName ?: 'users';
+            $resolvedTable = $tableName ?: $resolvedTable;
             $dbQuery = \Illuminate\Support\Facades\DB::table($resolvedTable);
         }
 
@@ -278,16 +262,19 @@ class UserFilterController extends Controller
 
         // Ricerca per testo (se presente)
         if (trim($query) !== '') {
-            $dbQuery->where(function ($qBuilder) use ($query, $idField, $labelField, $columns) {
+            $searchableFields = config('filterbymodel.user.searchable_fields', [
+                'name', 'cognome', 'nome', 'email', 'username', 'matricola', 'ragione_sociale', 'denominazione'
+            ]);
+
+            $dbQuery->where(function ($qBuilder) use ($query, $idField, $labelField, $columns, $searchableFields) {
                 if (is_numeric($query) && (empty($columns) || in_array($idField, $columns))) {
                     $qBuilder->orWhere($idField, $query);
                 }
-                if (empty($columns) || in_array($labelField, $columns)) {
+                if ($labelField && (empty($columns) || in_array($labelField, $columns))) {
                     $qBuilder->orWhere($labelField, 'LIKE', "%{$query}%");
                 }
-                $searchableFields = ['name', 'email', 'username', 'nome', 'cognome', 'denominazione'];
                 foreach ($searchableFields as $field) {
-                    if ($field !== $labelField && (empty($columns) || in_array($field, $columns))) {
+                    if (empty($columns) || in_array($field, $columns)) {
                         $qBuilder->orWhere($field, 'LIKE', "%{$query}%");
                     }
                 }
@@ -306,19 +293,8 @@ class UserFilterController extends Controller
         $items = [];
 
         foreach ($allUsers as $row) {
-            $id = is_object($row) ? ($row->{$idField} ?? $row->id ?? null) : ($row[$idField] ?? $row['id'] ?? null);
-
-            $label = '';
-            if (is_object($row)) {
-                $label = $row->{$labelField} ?? $row->name ?? $row->nome ?? $row->email ?? "Utente #{$id}";
-                if (isset($row->cognome) && $labelField === 'nome') {
-                    $label = trim("{$row->nome} {$row->cognome}");
-                }
-                $sublabel = $row->email ?? $row->username ?? (isset($row->id) ? "ID: {$id}" : '');
-            } else {
-                $label = $row[$labelField] ?? $row['name'] ?? $row['nome'] ?? $row['email'] ?? "Utente #{$id}";
-                $sublabel = $row['email'] ?? $row['username'] ?? "ID: {$id}";
-            }
+            $formattedUser = $this->formatUserRow($row, $columns, $idField, $labelField);
+            $id = $formattedUser['id'];
 
             $userFilters = $allUserFilters->get($id, collect());
             $hasFilters = $userFilters->isNotEmpty();
@@ -348,15 +324,13 @@ class UserFilterController extends Controller
                 ];
             })->values();
 
-            $items[] = [
-                'id'              => $id,
-                'label'           => $label,
-                'sublabel'        => $sublabel !== $label ? $sublabel : '',
+            $items[] = array_merge($formattedUser, [
                 'has_filters'     => $hasFilters,
                 'filters_count'   => $filtersCount,
                 'groups_count'    => $groupsCount,
+                'summaryBadges'   => $byType,
                 'filters_summary' => $byType,
-            ];
+            ]);
         }
 
         return response()->json([
@@ -365,5 +339,89 @@ class UserFilterController extends Controller
             'total_with_filters'    => $totalWithFilters,
             'total_without_filters' => $totalWithoutFilters,
         ]);
+    }
+
+    /**
+     * Risolve e formatta i campi utente (nome/cognome, email, sublabel) in modo dinamico e flessibile.
+     */
+    protected function formatUserRow($row, array $columns = [], ?string $idField = null, ?string $labelField = null): array
+    {
+        $idCol = $idField ?: config('filterbymodel.user.primary_key', 'id');
+        $id = is_object($row) ? ($row->{$idCol} ?? $row->id ?? null) : ($row[$idCol] ?? $row['id'] ?? null);
+
+        $getValue = function($field) use ($row) {
+            if (is_object($row)) {
+                return isset($row->{$field}) && $row->{$field} !== null && trim((string)$row->{$field}) !== ''
+                    ? trim((string)$row->{$field})
+                    : null;
+            }
+            return isset($row[$field]) && $row[$field] !== null && trim((string)$row[$field]) !== ''
+                ? trim((string)$row[$field])
+                : null;
+        };
+
+        // 1. Risoluzione Etichetta Principale (Nome Completo / Cognome Nome / Ragione Sociale)
+        $label = null;
+        if ($labelField && $getValue($labelField)) {
+            $label = $getValue($labelField);
+        }
+
+        if (!$label) {
+            // Se presenti cognome e nome, combinali (es. "Rossi Mario")
+            $cognome = $getValue('cognome');
+            $nome = $getValue('nome');
+            if ($cognome && $nome) {
+                $label = "{$cognome} {$nome}";
+            } elseif ($cognome) {
+                $label = $cognome;
+            } elseif ($nome) {
+                $label = $nome;
+            }
+        }
+
+        if (!$label) {
+            $displayFields = config('filterbymodel.user.display_fields', ['name', 'ragione_sociale', 'denominazione']);
+            foreach ($displayFields as $df) {
+                $val = $getValue($df);
+                if (!empty($val)) {
+                    $label = $val;
+                    break;
+                }
+            }
+        }
+
+        if (!$label) {
+            $label = $getValue('email') ?: "Utente #{$id}";
+        }
+
+        // 2. Risoluzione Email e Campi Secondari (sublabel)
+        $email = $getValue('email');
+        $sublabelParts = [];
+
+        if ($email && $email !== $label) {
+            $sublabelParts[] = $email;
+        }
+
+        $secondaryFields = config('filterbymodel.user.secondary_fields', ['username', 'matricola', 'codice_fiscale', 'ruolo']);
+        foreach ($secondaryFields as $sf) {
+            if ($sf === 'email') continue;
+            $val = $getValue($sf);
+            if (!empty($val) && $val !== $label) {
+                $sublabelParts[] = $val;
+            }
+        }
+
+        $sublabel = implode(' • ', $sublabelParts);
+        if (empty($sublabel)) {
+            $sublabel = "ID: {$id}";
+        }
+
+        return [
+            'id'       => $id,
+            'name'     => $label,
+            'label'    => $label,
+            'email'    => $email ?: '',
+            'sublabel' => $sublabel,
+        ];
     }
 }

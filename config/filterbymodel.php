@@ -1,7 +1,6 @@
 <?php
 
 return [
-
     /*
     |--------------------------------------------------------------------------
     | Nomi delle Tabelle Database
@@ -14,23 +13,31 @@ return [
 
     'tables' => [
         'filter_definitions' => 'filter_definitions',
-        'user_filters'       => 'user_filters',
+        'user_filters' => 'user_filters',
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Configurazione Utente
+    | Configurazione Utente / Operatore
     |--------------------------------------------------------------------------
     |
-    | Impostazioni per il collegamento all'entità utente dell'applicazione:
+    | Impostazioni per il collegamento e la visualizzazione degli operatori:
     | - model: la classe del modello User (se null, usa auth.providers.users.model)
     | - foreign_key: il nome della colonna usata come foreign key verso l'utente
+    | - display_fields: campi verificati in ordine per comporre il nome visualizzato (es. ['cognome', 'nome'])
+    | - secondary_fields: campi secondari mostrati come sottotitolo (es. ['email', 'matricola', 'username'])
+    | - searchable_fields: campi inclusi nella ricerca LIKE
     |
     */
 
     'user' => [
-        'model'       => env('FILTERBYMODEL_USER_MODEL', 'App\Models\User'),
+        'model' => env('FILTERBYMODEL_USER_MODEL', 'App\Models\User'),
+        'table' => env('FILTERBYMODEL_USER_TABLE', 'users'),
         'foreign_key' => 'user_id',
+        'primary_key' => 'id',
+        'display_fields' => ['email'],
+        'secondary_fields' => ['email'],
+        'searchable_fields' => ['name', 'email'],
     ],
 
     /*
@@ -58,10 +65,7 @@ return [
         ],
 
         // Modelli da ignorare
-        'ignore' => [
-            \SalvatoreCervone\FilterByModel\Models\FilterDefinition::class,
-            \SalvatoreCervone\FilterByModel\Models\UserFilter::class,
-        ],
+        'ignore' => [\SalvatoreCervone\FilterByModel\Models\FilterDefinition::class, \SalvatoreCervone\FilterByModel\Models\UserFilter::class],
 
         // Modelli manuali/espliciti aggiuntivi
         'explicit' => [
@@ -95,14 +99,7 @@ return [
         ],
 
         // Colonne verificate in ordine durante l'auto-detection su DB Schema
-        'fallback_columns' => [
-            'padre_id',
-            'parent_id',
-            'id_padre',
-            'parent_code',
-            'id_genitore',
-            'parent_node_id',
-        ],
+        'fallback_columns' => ['padre_id', 'parent_id', 'id_padre', 'parent_code', 'id_genitore', 'parent_node_id'],
     ],
 
     /*
@@ -118,8 +115,8 @@ return [
     */
 
     'security' => [
-        'global_scope_name'    => 'filter_by_model_security_perimeter',
-        'auth_id_resolver'     => null, // fn() => Auth::id(),
+        'global_scope_name' => 'filter_by_model_security_perimeter',
+        'auth_id_resolver' => null, // fn() => Auth::id(),
         'unauthorized_message' => 'Operazione bloccata. Non possiedi i requisiti di competenza necessari per interagire con questa risorsa.',
     ],
 
@@ -137,17 +134,16 @@ return [
     'routes' => [
         // Rotte API REST
         'api' => [
-            'enabled'    => true,
-            'prefix'     => 'api',
+            'enabled' => true,
+            'prefix' => 'api',
             'middleware' => ['api'],
         ],
 
         // Dashboard Amministrativa Web (accessibile es. su /filterbymodel o /admin/filters)
         'web' => [
-            'enabled'    => true,
-            'prefix'     => 'filterbymodel',
+            'enabled' => true,
+            'prefix' => 'filterbymodel',
             'middleware' => ['web'], // In produzione puoi aggiungere 'auth' o middleware di ruolo: ['web', 'auth']
         ],
     ],
-
 ];
