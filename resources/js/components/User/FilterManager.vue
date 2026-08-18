@@ -30,11 +30,20 @@
           </div>
         </div>
         
-        <!-- Slot per la ricerca utente -->
-        <slot name="user-search" :on-user-selected="handleUserSelected">
-          <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 flex items-center justify-between">
-            <span>Per collegare il componente di ricerca utente della tua applicazione, usa lo slot <code>#user-search="{ onUserSelected }"</code>.</span>
-          </div>
+        <!-- Slot per la ricerca utente con Autocomplete integrato di default -->
+        <slot 
+          name="user-search" 
+          :on-user-selected="handleUserSelected"
+          :selected-id="selectedUserId"
+        >
+          <UserAutocomplete
+            :model-value="selectedUserId"
+            :table="userTable"
+            :id-field="userIdField"
+            :label-field="userLabelField"
+            :placeholder="placeholder"
+            @update:model-value="handleUserSelected"
+          />
         </slot>
       </div>
 
@@ -75,12 +84,34 @@
 import { ref, computed, onMounted } from 'vue';
 import FilterForm from './FilterForm.vue';
 import FilterList from './FilterList.vue';
+import UserAutocomplete from './UserAutocomplete.vue';
 import { filterService } from '../../services/filterService';
 
 const props = defineProps({
+  /** Definizioni di filtro pre-caricate (opzionale) */
   definitions: {
     type: Array,
     default: null
+  },
+  /** Tabella database per l'autocomplete di ricerca (default: 'users') */
+  userTable: {
+    type: String,
+    default: 'users'
+  },
+  /** Nome colonna ID per l'autocomplete di ricerca (default: 'id') */
+  userIdField: {
+    type: String,
+    default: 'id'
+  },
+  /** Nome colonna etichetta per l'autocomplete di ricerca (default: 'name') */
+  userLabelField: {
+    type: String,
+    default: 'name'
+  },
+  /** Testo placeholder dell'autocomplete */
+  placeholder: {
+    type: String,
+    default: 'Cerca operatore per nome, email o ID...'
   }
 });
 
@@ -95,11 +126,20 @@ const resolvedDefinitions = computed(() => {
   return props.definitions || fetchedDefinitions.value;
 });
 
-const handleUserSelected = async (userId) => {
-  selectedUserId.value = userId;
-  emit('user-selected', userId);
+/**
+ * Gestisce la selezione dell'operatore.
+ * Restituisce ed emette RIGOROSAMENTE il solo ID (mai un oggetto).
+ */
+const handleUserSelected = async (userOrId) => {
+  const id = (typeof userOrId === 'object' && userOrId !== null) 
+    ? (userOrId.id ?? userOrId.user_id ?? userOrId.value ?? null) 
+    : (userOrId || null);
 
-  if (userId) {
+  selectedUserId.value = id;
+  // Emette rigorosamente il solo ID verso il genitore
+  emit('user-selected', id);
+
+  if (id) {
     await fetchUserFilters();
   } else {
     userFilters.value = [];

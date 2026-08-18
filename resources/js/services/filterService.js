@@ -52,6 +52,14 @@ export const filterService = {
     // ──────────────────────────────────────────
 
     /**
+     * Ricerca utenti per l'autocomplete (con supporto a tabella e campi custom).
+     */
+    async searchUsers(params = {}) {
+        const response = await axios.get('/api/search-users', { params });
+        return response.data;
+    },
+
+    /**
      * Recupera i filtri attivi per un utente specifico.
      */
     async getUserFilters(userId) {

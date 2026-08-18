@@ -25,6 +25,7 @@ Route::delete('/filter-definitions/{id}', [FilterDefinitionController::class, 'd
 Route::get('/available-models', [FilterDefinitionController::class, 'availableModels']);
 
 // --- Filtri Utente ---
+Route::get('/search-users', [UserFilterController::class, 'searchUsers']);
 Route::get('/user-filters', [UserFilterController::class, 'index']);
 Route::post('/user-filters', [UserFilterController::class, 'store']);
 Route::delete('/user-filters/{id}', [UserFilterController::class, 'destroy']);

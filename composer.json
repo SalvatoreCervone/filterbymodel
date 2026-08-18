@@ -6,12 +6,28 @@
     "homepage": "https://github.com/SalvatoreCervone/filterbymodel",
     "keywords": [
         "laravel",
+        "laravel-package",
         "eloquent",
-        "filter",
-        "security",
+        "eloquent-filter",
+        "model-filter",
         "row-level-security",
+        "rls",
+        "security",
+        "perimeter-security",
+        "authorization",
         "permissions",
-        "vue3"
+        "access-control",
+        "acl",
+        "global-scope",
+        "tree-hierarchy",
+        "parent-child",
+        "multitenancy",
+        "vue",
+        "vue3",
+        "inertia",
+        "user-filters",
+        "filtri-eloquent",
+        "sicurezza-perimetrale"
     ],
     "authors": [
         {
