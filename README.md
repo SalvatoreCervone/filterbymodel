@@ -173,8 +173,10 @@ Le seguenti rotte REST sono esposte automaticamente se `routes.enabled` è `true
 | `DELETE` | `/api/filter-definitions/{id}`  | Elimina una regola                   |
 | `GET`    | `/api/available-models`         | Modelli configurati disponibili      |
 | `GET`    | `/api/search-users`             | Ricerca operatori/utenti per autocomplete |
+| `GET`    | `/api/user-filters-summary`     | Resoconto globale di tutti gli utenti e permessi bindati |
 | `GET`    | `/api/user-filters?user_id={id}`| Filtri attivi per un determinato utente |
 | `POST`   | `/api/user-filters`             | Assegna un filtro a un utente        |
+| `POST`   | `/api/user-filters/copy`        | Clona i filtri da un utente sorgente a 1 o più destinatari |
 | `DELETE` | `/api/user-filters/{id}`        | Rimuove un filtro utente             |
 
 ---
@@ -184,10 +186,20 @@ Le seguenti rotte REST sono esposte automaticamente se `routes.enabled` è `true
 Dopo aver eseguito `php artisan vendor:publish --tag=filterbymodel-vue`, i componenti Vue 3 saranno pronti all'uso nella directory `resources/js/Components/FilterByModel/`:
 
 - **`FilterDefinitionManager.vue`** — Pannello di amministrazione per configurare le regole di visibilità con **simulazione query SQL live** in tempo reale (SELECT, UPDATE, DELETE).
-- **`User/FilterManager.vue`** — Maschera principale per assegnare e gestire i filtri dei singoli utenti (include di default l'autocomplete di ricerca).
-- **`User/UserAutocomplete.vue`** — Componente Autocomplete di ricerca operatore collegato al DB, con debounce, navigazione da tastiera e supporto a tabelle/colonne personalizzate.
+- **`User/FilterManager.vue`** — Maschera principale con switch a schede (*Configura Operatore* e *Resoconto Globale*).
+- **`User/UserSummaryTable.vue`** — **Datatable di Resoconto Globale**: panoramica di tutti gli utenti, filtri per stato (con permessi / senza vincoli), badge di conteggio regole e azioni rapide di configurazione e clonazione.
+- **`User/UserAutocomplete.vue`** — Autocomplete di ricerca operatore collegato al DB con debounce, navigazione da tastiera e supporto tabelle/campi custom.
+- **`User/CopyFiltersModal.vue`** — Modale per **clonare e duplicare i permessi** su 1 o più operatori contemporaneamente (con modalità *Replace* o *Merge*).
 - **`User/FilterForm.vue`** — Modulo di assegnazione filtro con supporto inclusioni alberi gerarchici (`include_children`).
 - **`User/FilterList.vue`** — Tabella riassuntiva dei filtri attivi dell'utente con opzione di revoca.
+
+### Resoconto Globale e Panoramica Utenti
+
+Il componente `UserSummaryTable.vue` (o la scheda *Resoconto Globale* in `FilterManager.vue`) offre agli amministratori:
+1. **Indicatori Statistici (Stat Cards)**: totale operatori, quanti hanno filtri di sicurezza attivi e quanti sono senza vincoli.
+2. **Filtri di Stato Rapidi**: pulsanti per filtrare all'istante *Tutti*, *Con Permessi* o *Senza Vincoli*.
+3. **Ricerca Testuale**: filtro immediato per nome, cognome, email o ID.
+4. **Azioni Rapide Dirette**: pulsante *"Configura"* per passare all'editor del singolo operatore e pulsante *"Clona"* per duplicarne le competenze.
 
 ### Configurazione di Default e Personalizzazione Ricerca Utente
 
@@ -204,6 +216,7 @@ Il componente `FilterManager.vue` include **già di default l'autocomplete integ
   user-label-field="cognome_nome"
   placeholder="Cerca per matricola o cognome..."
   @user-selected="(id) => console.log('ID Operatore selezionato:', id)"
+  @filters-cloned="(result) => console.log('Clonati:', result)"
 />
 ```
 

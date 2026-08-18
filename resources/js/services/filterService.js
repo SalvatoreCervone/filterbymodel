@@ -60,6 +60,14 @@ export const filterService = {
     },
 
     /**
+     * Recupera il resoconto/datatable di tutti gli utenti e lo stato dei loro filtri bindati.
+     */
+    async getUserFiltersSummary(params = {}) {
+        const response = await axios.get('/api/user-filters-summary', { params });
+        return response.data;
+    },
+
+    /**
      * Recupera i filtri attivi per un utente specifico.
      */
     async getUserFilters(userId) {
@@ -75,6 +83,14 @@ export const filterService = {
     async createUserFilter(payload) {
         const response = await axios.post('/api/user-filters', payload);
         return response.data.data ? response.data.data : response.data;
+    },
+
+    /**
+     * Clona i filtri di un utente su uno o più utenti di destinazione.
+     */
+    async copyUserFilters(payload) {
+        const response = await axios.post('/api/user-filters/copy', payload);
+        return response.data;
     },
 
     /**
