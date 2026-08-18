@@ -125,17 +125,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Rotte API
+    | Rotte del Package (API & Web Dashboard)
     |--------------------------------------------------------------------------
     |
-    | Configurazione dinamica delle rotte fornite dal package.
+    | Configurazione dinamica delle rotte fornite dal package:
+    | - api: rotte REST per le operazioni CRUD (usate da UI e client JS)
+    | - web: rotta per accedere alla Dashboard Amministrativa integrata
     |
     */
 
     'routes' => [
-        'enabled'    => true,
-        'prefix'     => 'api',
-        'middleware' => ['api'],
+        // Rotte API REST
+        'api' => [
+            'enabled'    => true,
+            'prefix'     => 'api',
+            'middleware' => ['api'],
+        ],
+
+        // Dashboard Amministrativa Web (accessibile es. su /filterbymodel o /admin/filters)
+        'web' => [
+            'enabled'    => true,
+            'prefix'     => 'filterbymodel',
+            'middleware' => ['web'], // In produzione puoi aggiungere 'auth' o middleware di ruolo: ['web', 'auth']
+        ],
     ],
 
 ];

@@ -30,7 +30,7 @@ Puoi pubblicare tutti gli asset del package con un unico comando, oppure pubblic
 
 ### Pubblicazione Completa (Raccomandata)
 
-Pubblica contemporaneamente la configurazione, le migrazioni, i componenti Vue 3 e i servizi JavaScript:
+Pubblica contemporaneamente la configurazione, le migrazioni, le viste Blade del pannello, i componenti Vue 3 e i servizi JavaScript:
 
 ```bash
 php artisan vendor:publish --tag=filterbymodel
@@ -38,20 +38,22 @@ php artisan vendor:publish --tag=filterbymodel
 
 ### Pubblicazione Selettiva
 
-| Comando | Tag | Destinazione | Descrizione |
-|---|---|---|---|
-| `php artisan vendor:publish --tag=filterbymodel-vue` | `filterbymodel-vue` | `resources/js/Components/FilterByModel/` | Componenti Vue 3 per la UI |
-| `php artisan vendor:publish --tag=filterbymodel-services` | `filterbymodel-services` | `resources/js/services/` | Client API JS (`filterService.js`) |
-| `php artisan vendor:publish --tag=filterbymodel-config` | `filterbymodel-config` | `config/filterbymodel.php` | File di configurazione |
-| `php artisan vendor:publish --tag=filterbymodel-migrations` | `filterbymodel-migrations` | `database/migrations/` | Migrazioni per le tabelle del package |
-| `php artisan vendor:publish --tag=filterbymodel-routes` | `filterbymodel-routes` | `routes/filterbymodel.php` | Rotte API (per sovrascrittura manuale) |
+| Comando                                                     | Tag                        | Destinazione                             | Descrizione                                          |
+| ----------------------------------------------------------- | -------------------------- | ---------------------------------------- | ---------------------------------------------------- |
+| `php artisan vendor:publish --tag=filterbymodel-views`      | `filterbymodel-views`      | `resources/views/vendor/filterbymodel/`  | Vista Blade della Dashboard Amministrativa           |
+| `php artisan vendor:publish --tag=filterbymodel-vue`        | `filterbymodel-vue`        | `resources/js/Components/FilterByModel/` | Componenti Vue 3 per la UI (Inertia/Vite)           |
+| `php artisan vendor:publish --tag=filterbymodel-services`   | `filterbymodel-services`   | `resources/js/services/`                 | Client API JS (`filterService.js`)                   |
+| `php artisan vendor:publish --tag=filterbymodel-config`     | `filterbymodel-config`     | `config/filterbymodel.php`               | File di configurazione                               |
+| `php artisan vendor:publish --tag=filterbymodel-migrations` | `filterbymodel-migrations` | `database/migrations/`                   | Migrazioni per le tabelle del package                |
+| `php artisan vendor:publish --tag=filterbymodel-routes`     | `filterbymodel-routes`     | `routes/filterbymodel-*.php`             | Rotte API e Web personalizzabili                     |
 
 ### Aggiornamento e Sovrascrittura (`--force`)
 
-Se aggiorni il package e desideri sovrascrivere i file precedentemente pubblicati (es. componenti Vue aggiornati):
+Se aggiorni il package e desideri sovrascrivere i file precedentemente pubblicati:
 
 ```bash
-# Sovrascrive solo i componenti Vue e i servizi JS
+# Sovrascrive viste, componenti Vue e servizi JS
+php artisan vendor:publish --tag=filterbymodel-views --force
 php artisan vendor:publish --tag=filterbymodel-vue --force
 php artisan vendor:publish --tag=filterbymodel-services --force
 
@@ -115,14 +117,41 @@ return [
         'parent_column' => 'padre_id',
     ],
 
-    // Configurazione rotte API del package
+    // Configurazione rotte del package (API REST e Dashboard Web)
     'routes' => [
-        'enabled'    => true,
-        'prefix'     => 'api',
-        'middleware' => ['api'],
+        'api' => [
+            'enabled'    => true,
+            'prefix'     => 'api',
+            'middleware' => ['api'],
+        ],
+        'web' => [
+            'enabled'    => true,
+            'prefix'     => 'filterbymodel', // es. http://tuo-dominio.test/filterbymodel
+            'middleware' => ['web'],         // In prod: ['web', 'auth']
+        ],
     ],
 ];
 ```
+
+---
+
+## Dashboard Web Amministrativa (Plug & Play)
+
+Il package include un'**interfaccia web completa e reattiva** pronta all'uso. Senza configurare pagine o componenti, ti basta accedere dal browser all'URL:
+
+```text
+http://tuo-dominio.test/filterbymodel
+```
+
+La dashboard include 3 sezioni integrate:
+1. **Regole Modelli**: Configurazione visuale delle relazioni con simulazione live delle query SQL generate.
+2. **Competenze Utenti**: Autocomplete per selezionare gli operatori, assegnare perimetri e gestire le gerarchie ad albero.
+3. **Resoconto Globale**: Statistiche aggregate, panoramica dello stato di tutti gli utenti e clonazione massiva rapida dei permessi.
+
+> [!TIP]
+> Puoi proteggere la dashboard impostando il middleware nel file `config/filterbymodel.php` (es. `['web', 'auth']` o un middleware personalizzato per soli amministratori).
+
+---
 
 ## Utilizzo Backend
 
@@ -164,20 +193,20 @@ $filters = $service->ottieniFiltriRisolti(Anagrafica::class, $userId);
 
 ## API Endpoints
 
-Le seguenti rotte REST sono esposte automaticamente se `routes.enabled` è `true`:
+Le seguenti rotte REST sono esposte automaticamente se `routes.api.enabled` è `true`:
 
-| Metodo   | Endpoint                        | Descrizione                          |
-|----------|---------------------------------|--------------------------------------|
-| `GET`    | `/api/filter-definitions`       | Lista di tutte le regole di visibilità|
-| `POST`   | `/api/filter-definitions`       | Crea o aggiorna una regola           |
-| `DELETE` | `/api/filter-definitions/{id}`  | Elimina una regola                   |
-| `GET`    | `/api/available-models`         | Modelli configurati disponibili      |
-| `GET`    | `/api/search-users`             | Ricerca operatori/utenti per autocomplete |
-| `GET`    | `/api/user-filters-summary`     | Resoconto globale di tutti gli utenti e permessi bindati |
-| `GET`    | `/api/user-filters?user_id={id}`| Filtri attivi per un determinato utente |
-| `POST`   | `/api/user-filters`             | Assegna un filtro a un utente        |
-| `POST`   | `/api/user-filters/copy`        | Clona i filtri da un utente sorgente a 1 o più destinatari |
-| `DELETE` | `/api/user-filters/{id}`        | Rimuove un filtro utente             |
+| Metodo   | Endpoint                         | Descrizione                                                |
+| -------- | -------------------------------- | ---------------------------------------------------------- |
+| `GET`    | `/api/filter-definitions`        | Lista di tutte le regole di visibilità                     |
+| `POST`   | `/api/filter-definitions`        | Crea o aggiorna una regola                                 |
+| `DELETE` | `/api/filter-definitions/{id}`   | Elimina una regola                                         |
+| `GET`    | `/api/available-models`          | Modelli configurati disponibili                            |
+| `GET`    | `/api/search-users`              | Ricerca operatori/utenti per autocomplete                  |
+| `GET`    | `/api/user-filters-summary`      | Resoconto globale di tutti gli utenti e permessi bindati   |
+| `GET`    | `/api/user-filters?user_id={id}` | Filtri attivi per un determinato utente                    |
+| `POST`   | `/api/user-filters`              | Assegna un filtro a un utente                              |
+| `POST`   | `/api/user-filters/copy`         | Clona i filtri da un utente sorgente a 1 o più destinatari |
+| `DELETE` | `/api/user-filters/{id}`         | Rimuove un filtro utente                                   |
 
 ---
 
@@ -185,21 +214,23 @@ Le seguenti rotte REST sono esposte automaticamente se `routes.enabled` è `true
 
 Dopo aver eseguito `php artisan vendor:publish --tag=filterbymodel-vue`, i componenti Vue 3 saranno pronti all'uso nella directory `resources/js/Components/FilterByModel/`:
 
+- **`FilterByModelDashboard.vue`** — **Dashboard Completa Unificata**: include navigazione a schede tra Regole Modelli e Competenze Operatori, ideale per un'integrazione a singola riga.
 - **`FilterDefinitionManager.vue`** — Pannello di amministrazione per configurare le regole di visibilità con **simulazione query SQL live** in tempo reale (SELECT, UPDATE, DELETE).
-- **`User/FilterManager.vue`** — Maschera principale con switch a schede (*Configura Operatore* e *Resoconto Globale*).
+- **`User/FilterManager.vue`** — Maschera principale con switch a schede (_Configura Operatore_ e _Resoconto Globale_).
 - **`User/UserSummaryTable.vue`** — **Datatable di Resoconto Globale**: panoramica di tutti gli utenti, filtri per stato (con permessi / senza vincoli), badge di conteggio regole e azioni rapide di configurazione e clonazione.
 - **`User/UserAutocomplete.vue`** — Autocomplete di ricerca operatore collegato al DB con debounce, navigazione da tastiera e supporto tabelle/campi custom.
-- **`User/CopyFiltersModal.vue`** — Modale per **clonare e duplicare i permessi** su 1 o più operatori contemporaneamente (con modalità *Replace* o *Merge*).
+- **`User/CopyFiltersModal.vue`** — Modale per **clonare e duplicare i permessi** su 1 o più operatori contemporaneamente (con modalità _Replace_ o _Merge_).
 - **`User/FilterForm.vue`** — Modulo di assegnazione filtro con supporto inclusioni alberi gerarchici (`include_children`).
 - **`User/FilterList.vue`** — Tabella riassuntiva dei filtri attivi dell'utente con opzione di revoca.
 
 ### Resoconto Globale e Panoramica Utenti
 
-Il componente `UserSummaryTable.vue` (o la scheda *Resoconto Globale* in `FilterManager.vue`) offre agli amministratori:
+Il componente `UserSummaryTable.vue` (o la scheda _Resoconto Globale_ in `FilterManager.vue`) offre agli amministratori:
+
 1. **Indicatori Statistici (Stat Cards)**: totale operatori, quanti hanno filtri di sicurezza attivi e quanti sono senza vincoli.
-2. **Filtri di Stato Rapidi**: pulsanti per filtrare all'istante *Tutti*, *Con Permessi* o *Senza Vincoli*.
+2. **Filtri di Stato Rapidi**: pulsanti per filtrare all'istante _Tutti_, _Con Permessi_ o _Senza Vincoli_.
 3. **Ricerca Testuale**: filtro immediato per nome, cognome, email o ID.
-4. **Azioni Rapide Dirette**: pulsante *"Configura"* per passare all'editor del singolo operatore e pulsante *"Clona"* per duplicarne le competenze.
+4. **Azioni Rapide Dirette**: pulsante _"Configura"_ per passare all'editor del singolo operatore e pulsante _"Clona"_ per duplicarne le competenze.
 
 ### Configurazione di Default e Personalizzazione Ricerca Utente
 
@@ -210,7 +241,7 @@ Il componente `FilterManager.vue` include **già di default l'autocomplete integ
 <FilterManager />
 
 <!-- Personalizzazione tabella, campo ID, campo etichetta e placeholder -->
-<FilterManager 
+<FilterManager
   user-table="operatori"
   user-id-field="id_operatore"
   user-label-field="cognome_nome"
@@ -235,31 +266,53 @@ Se preferisci usare un tuo componente di ricerca custom invece dell'autocomplete
 
 ### Esempio d'uso con Inertia.js
 
-Crea una pagina amministrativa (es. `resources/js/Pages/Admin/SecurityFilters.vue`):
+Puoi integrare direttamente l'intera dashboard con una sola riga:
 
 ```vue
 <script setup>
-import FilterDefinitionManager from '@/Components/FilterByModel/FilterDefinitionManager.vue';
-import FilterManager from '@/Components/FilterByModel/User/FilterManager.vue';
-import { ref } from 'vue';
+import FilterByModelDashboard from "@/Components/FilterByModel/FilterByModelDashboard.vue";
+</script>
 
-const activeTab = ref('definitions');
+<template>
+  <FilterByModelDashboard />
+</template>
+```
+
+Oppure comporre manualmente i singoli componenti con i tuoi tab personalizzati:
+
+```vue
+<script setup>
+import FilterDefinitionManager from "@/Components/FilterByModel/FilterDefinitionManager.vue";
+import FilterManager from "@/Components/FilterByModel/User/FilterManager.vue";
+import { ref } from "vue";
+
+const activeTab = ref("definitions");
 </script>
 
 <template>
   <div class="p-6 max-w-7xl mx-auto">
     <!-- Tab di navigazione -->
     <div class="flex gap-4 mb-6">
-      <button 
-        @click="activeTab = 'definitions'" 
-        :class="activeTab === 'definitions' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'"
-        class="px-4 py-2 rounded-xl font-semibold text-sm transition-all shadow-xs">
+      <button
+        @click="activeTab = 'definitions'"
+        :class="
+          activeTab === 'definitions'
+            ? 'bg-indigo-600 text-white'
+            : 'bg-slate-200 text-slate-700'
+        "
+        class="px-4 py-2 rounded-xl font-semibold text-sm transition-all shadow-xs"
+      >
         Regole di Visibilità (Admin)
       </button>
-      <button 
-        @click="activeTab = 'users'" 
-        :class="activeTab === 'users' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'"
-        class="px-4 py-2 rounded-xl font-semibold text-sm transition-all shadow-xs">
+      <button
+        @click="activeTab = 'users'"
+        :class="
+          activeTab === 'users'
+            ? 'bg-indigo-600 text-white'
+            : 'bg-slate-200 text-slate-700'
+        "
+        class="px-4 py-2 rounded-xl font-semibold text-sm transition-all shadow-xs"
+      >
         Competenze Utenti
       </button>
     </div>
@@ -278,24 +331,24 @@ const activeTab = ref('definitions');
 Se utilizzi Blade tradizionale con Vue montato su un elemento:
 
 Nel tuo file `resources/js/app.js`:
+
 ```javascript
-import { createApp } from 'vue';
-import FilterDefinitionManager from './Components/FilterByModel/FilterDefinitionManager.vue';
-import FilterManager from './Components/FilterByModel/User/FilterManager.vue';
+import { createApp } from "vue";
+import FilterDefinitionManager from "./Components/FilterByModel/FilterDefinitionManager.vue";
+import FilterManager from "./Components/FilterByModel/User/FilterManager.vue";
 
 const app = createApp({});
-app.component('filter-definition-manager', FilterDefinitionManager);
-app.component('filter-manager', FilterManager);
-app.mount('#app');
+app.component("filter-definition-manager", FilterDefinitionManager);
+app.component("filter-manager", FilterManager);
+app.mount("#app");
 ```
 
 Nella tua vista Blade (es. `resources/views/admin/filters.blade.php`):
-```html
-@extends('layouts.app')
 
-@section('content')
+```html
+@extends('layouts.app') @section('content')
 <div id="app" class="container mx-auto py-8">
-    <filter-definition-manager></filter-definition-manager>
+  <filter-definition-manager></filter-definition-manager>
 </div>
 @endsection
 ```
@@ -303,6 +356,7 @@ Nella tua vista Blade (es. `resources/views/admin/filters.blade.php`):
 ### Strutture ad Albero e Colonne Gerarchiche (`include_children`)
 
 Quando si abilitano i nodi figli (`include_children`), il package calcola ricorsivamente tutti i discendenti:
+
 - **Dalla UI Admin (`FilterDefinitionManager.vue`)**: puoi indicare esplicitamente il campo gerarchico (es. `parent_id`, `id_padre`, `padre_id`).
 - **Se lasciato vuoto**: usa `padre_id` (o la configurazione globale) oppure rileva automaticamente le colonne convenzionali su DB (`padre_id`, `parent_id`, `id_padre`, `parent_code`, `id_genitore`).
 
