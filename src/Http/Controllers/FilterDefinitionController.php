@@ -87,4 +87,37 @@ class FilterDefinitionController extends Controller
 
         return response()->json($models);
     }
+
+    /**
+     * Restituisce le colonne della tabella del modello o della tabella pivot indicata.
+     */
+    public function modelColumns(Request $request): JsonResponse
+    {
+        $modelClass = $request->query('model_class');
+        $tableName = $request->query('table');
+        $columns = [];
+
+        if (!empty($modelClass) && class_exists($modelClass)) {
+            try {
+                /** @var \Illuminate\Database\Eloquent\Model $instance */
+                $instance = new $modelClass();
+                $table = $instance->getTable();
+                if (\Illuminate\Support\Facades\Schema::hasTable($table)) {
+                    $columns = \Illuminate\Support\Facades\Schema::getColumnListing($table);
+                }
+            } catch (\Throwable $e) {
+                // Fallback graceful
+            }
+        } elseif (!empty($tableName)) {
+            try {
+                if (\Illuminate\Support\Facades\Schema::hasTable($tableName)) {
+                    $columns = \Illuminate\Support\Facades\Schema::getColumnListing($tableName);
+                }
+            } catch (\Throwable $e) {
+                // Fallback graceful
+            }
+        }
+
+        return response()->json(['columns' => array_values($columns)]);
+    }
 }

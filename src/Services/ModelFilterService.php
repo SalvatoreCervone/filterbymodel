@@ -186,13 +186,7 @@ class ModelFilterService
                             $subQuery->whereIn($colonnaFiltroCompleta, $data['ids']);
 
                             if (!$skipAdditional && !empty($data['additional_where'])) {
-                                foreach ($data['additional_where'] as $column => $value) {
-                                    if ($value === null) {
-                                        $subQuery->whereNull($tableName . '.' . $column);
-                                    } else {
-                                        $subQuery->where($tableName . '.' . $column, $value);
-                                    }
-                                }
+                                $this->applicaCondizioniAggiuntive($subQuery, $data['additional_where'], $tableName);
                             }
                         } else {
                             // Relazione Pivot (N:M)
@@ -206,13 +200,7 @@ class ModelFilterService
                                     ->whereIn($data['filter_key'], $data['ids']);
 
                                 if (!$skipAdditional && !empty($data['additional_where'])) {
-                                    foreach ($data['additional_where'] as $column => $value) {
-                                        if ($value === null) {
-                                            $query->whereNull($column);
-                                        } else {
-                                            $query->where($column, $value);
-                                        }
-                                    }
+                                    $this->applicaCondizioniAggiuntive($query, $data['additional_where']);
                                 }
                             });
                         }
@@ -236,14 +224,8 @@ class ModelFilterService
                 }
 
                 if (!empty($data['additional_where'])) {
-                    foreach ($data['additional_where'] as $column => $value) {
-                        if ($value === null) {
-                            if ($modelInstance->{$column} !== null) {
-                                return false;
-                            }
-                        } elseif ($modelInstance->{$column} != $value) {
-                            return false;
-                        }
+                    if (!$this->verificaRecordCondizioniAggiuntive($modelInstance, $data['additional_where'])) {
+                        return false;
                     }
                 }
             } else {
@@ -257,13 +239,7 @@ class ModelFilterService
                     ->whereIn($data['filter_key'], $data['ids']);
 
                 if (!empty($data['additional_where'])) {
-                    foreach ($data['additional_where'] as $column => $value) {
-                        if ($value === null) {
-                            $query->whereNull($column);
-                        } else {
-                            $query->where($column, $value);
-                        }
-                    }
+                    $this->applicaCondizioniAggiuntive($query, $data['additional_where']);
                 }
 
                 if (!$query->exists()) {
@@ -561,5 +537,241 @@ class ModelFilterService
         }
 
         return null;
+    }
+
+    /**
+     * Normalizza ed applica condizioni aggiuntive strutturate su una query (Builder o DB Query).
+     */
+    public function applicaCondizioniAggiuntive($query, array $additionalWhere, string $tablePrefix = ''): void
+    {
+        $normalized = $this->normalizzaCondizioniAggiuntive($additionalWhere);
+
+        foreach ($normalized as $condition) {
+            $column = $condition['column'] ?? null;
+            if (empty($column)) {
+                continue;
+            }
+
+            $colName = !empty($tablePrefix) && !str_contains($column, '.')
+                ? $tablePrefix . '.' . $column
+                : $column;
+
+            $operator = strtoupper(trim($condition['operator'] ?? '='));
+            $value = $this->risolviValoreDinamico($condition['value'] ?? null);
+
+            switch ($operator) {
+                case 'IS NULL':
+                case 'NULL':
+                    $query->whereNull($colName);
+                    break;
+
+                case 'IS NOT NULL':
+                case 'NOT NULL':
+                    $query->whereNotNull($colName);
+                    break;
+
+                case 'IN':
+                    $values = is_array($value) ? $value : array_map('trim', explode(',', (string) $value));
+                    $query->whereIn($colName, $values);
+                    break;
+
+                case 'NOT IN':
+                    $values = is_array($value) ? $value : array_map('trim', explode(',', (string) $value));
+                    $query->whereNotIn($colName, $values);
+                    break;
+
+                case 'BETWEEN':
+                    $values = is_array($value) ? $value : array_map('trim', explode(',', (string) $value));
+                    if (count($values) >= 2) {
+                        $query->whereBetween($colName, [$values[0], $values[1]]);
+                    }
+                    break;
+
+                case 'NOT BETWEEN':
+                    $values = is_array($value) ? $value : array_map('trim', explode(',', (string) $value));
+                    if (count($values) >= 2) {
+                        $query->whereNotBetween($colName, [$values[0], $values[1]]);
+                    }
+                    break;
+
+                case 'LIKE':
+                case 'NOT LIKE':
+                case '!=':
+                case '<>':
+                case '>':
+                case '>=':
+                case '<':
+                case '<=':
+                case '=':
+                default:
+                    if ($value === null) {
+                        if ($operator === '!=' || $operator === '<>') {
+                            $query->whereNotNull($colName);
+                        } else {
+                            $query->whereNull($colName);
+                        }
+                    } else {
+                        $query->where($colName, $operator, $value);
+                    }
+                    break;
+            }
+        }
+    }
+
+    /**
+     * Verifica in-memory se un'istanza del record rispetta le condizioni aggiuntive.
+     */
+    public function verificaRecordCondizioniAggiuntive($modelInstance, array $additionalWhere): bool
+    {
+        $normalized = $this->normalizzaCondizioniAggiuntive($additionalWhere);
+
+        foreach ($normalized as $condition) {
+            $column = $condition['column'] ?? null;
+            if (empty($column)) {
+                continue;
+            }
+
+            $operator = strtoupper(trim($condition['operator'] ?? '='));
+            $expectedValue = $this->risolviValoreDinamico($condition['value'] ?? null);
+            $actualValue = $modelInstance->{$column} ?? null;
+
+            switch ($operator) {
+                case 'IS NULL':
+                case 'NULL':
+                    if ($actualValue !== null) {
+                        return false;
+                    }
+                    break;
+
+                case 'IS NOT NULL':
+                case 'NOT NULL':
+                    if ($actualValue === null) {
+                        return false;
+                    }
+                    break;
+
+                case 'IN':
+                    $values = is_array($expectedValue) ? $expectedValue : array_map('trim', explode(',', (string) $expectedValue));
+                    if (!in_array((string) $actualValue, array_map('strval', $values), true)) {
+                        return false;
+                    }
+                    break;
+
+                case 'NOT IN':
+                    $values = is_array($expectedValue) ? $expectedValue : array_map('trim', explode(',', (string) $expectedValue));
+                    if (in_array((string) $actualValue, array_map('strval', $values), true)) {
+                        return false;
+                    }
+                    break;
+
+                case 'BETWEEN':
+                    $values = is_array($expectedValue) ? $expectedValue : array_map('trim', explode(',', (string) $expectedValue));
+                    if (count($values) >= 2 && ($actualValue < $values[0] || $actualValue > $values[1])) {
+                        return false;
+                    }
+                    break;
+
+                case 'NOT BETWEEN':
+                    $values = is_array($expectedValue) ? $expectedValue : array_map('trim', explode(',', (string) $expectedValue));
+                    if (count($values) >= 2 && ($actualValue >= $values[0] && $actualValue <= $values[1])) {
+                        return false;
+                    }
+                    break;
+
+                case '>':
+                    if (!($actualValue > $expectedValue)) return false;
+                    break;
+                case '>=':
+                    if (!($actualValue >= $expectedValue)) return false;
+                    break;
+                case '<':
+                    if (!($actualValue < $expectedValue)) return false;
+                    break;
+                case '<=':
+                    if (!($actualValue <= $expectedValue)) return false;
+                    break;
+                case '!=':
+                case '<>':
+                    if ($actualValue == $expectedValue) return false;
+                    break;
+                case 'LIKE':
+                    $pattern = str_replace('%', '.*', preg_quote((string) $expectedValue, '/'));
+                    if (!preg_match('/^' . $pattern . '$/i', (string) $actualValue)) return false;
+                    break;
+                case 'NOT LIKE':
+                    $pattern = str_replace('%', '.*', preg_quote((string) $expectedValue, '/'));
+                    if (preg_match('/^' . $pattern . '$/i', (string) $actualValue)) return false;
+                    break;
+                case '=':
+                default:
+                    if ($actualValue != $expectedValue) return false;
+                    break;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Converte qualsiasi formato di additional_where (array di regole, lista di oggetti o mappa chiave-valore legacy)
+     * in una struttura standardizzata di condizioni.
+     */
+    public function normalizzaCondizioniAggiuntive(array $rawConditions): array
+    {
+        $normalized = [];
+
+        // Se è una mappa associativa legacy {"status": "active", "is_deleted": 0}
+        $isAssociativeMap = !empty($rawConditions) && array_keys($rawConditions) !== range(0, count($rawConditions) - 1);
+
+        if ($isAssociativeMap) {
+            foreach ($rawConditions as $column => $value) {
+                if (is_array($value) && isset($value['column'])) {
+                    $normalized[] = $value;
+                } else {
+                    $normalized[] = [
+                        'column'   => (string) $column,
+                        'operator' => $value === null ? 'IS NULL' : '=',
+                        'value'    => $value,
+                    ];
+                }
+            }
+            return $normalized;
+        }
+
+        // Se è già un array di condizioni strutturate [{"column": "stato", "operator": "=", "value": "attivo"}]
+        foreach ($rawConditions as $item) {
+            if (is_array($item)) {
+                $column = $item['column'] ?? $item['field'] ?? null;
+                if (!empty($column)) {
+                    $normalized[] = [
+                        'column'   => (string) $column,
+                        'operator' => (string) ($item['operator'] ?? '='),
+                        'value'    => $item['value'] ?? null,
+                    ];
+                }
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Risolve eventuali placeholder dinamici nel valore (@auth_id, @user.id, @current_year, @today, @null).
+     */
+    public function risolviValoreDinamico(mixed $value): mixed
+    {
+        if (!is_string($value)) {
+            return $value;
+        }
+
+        $trimmed = trim($value);
+
+        return match (strtolower($trimmed)) {
+            '@auth_id', '@user.id', '@user_id' => $this->resolveUserId(),
+            '@current_year', '@year'           => (int) date('Y'),
+            '@today', '@now', '@current_date'  => date('Y-m-d'),
+            '@null'                            => null,
+            default                            => $value,
+        };
     }
 }

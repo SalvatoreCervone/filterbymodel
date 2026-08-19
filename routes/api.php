@@ -21,8 +21,9 @@ Route::get('/filter-definitions', [FilterDefinitionController::class, 'index']);
 Route::post('/filter-definitions', [FilterDefinitionController::class, 'store']);
 Route::delete('/filter-definitions/{id}', [FilterDefinitionController::class, 'destroy']);
 
-// --- Modelli Disponibili ---
+// --- Modelli Disponibili & Introspezione Colonne ---
 Route::get('/available-models', [FilterDefinitionController::class, 'availableModels']);
+Route::get('/model-columns', [FilterDefinitionController::class, 'modelColumns']);
 
 // --- Filtri Utente ---
 Route::get('/search-users', [UserFilterController::class, 'searchUsers']);

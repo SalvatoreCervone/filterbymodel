@@ -40,6 +40,12 @@
       // --- STATO ADMIN / DEFINIZIONI ---
       const availableModels = ref([]);
       const definitions = ref([]);
+      const availableColumns = ref([]);
+      const isLoadingColumns = ref(false);
+      const conditionMode = ref('visual');
+      const conditions = ref([]);
+      const rawAdditionalWhere = ref('');
+      const jsonError = ref(false);
 
       const form = reactive({
         model_class: '',
@@ -67,6 +73,27 @@
         return availableModels.value.find(m => m.class === modelClass) || null;
       };
 
+      const loadModelColumns = async () => {
+        if (!form.model_class && !form.pivot_table) {
+          availableColumns.value = [];
+          return;
+        }
+        isLoadingColumns.value = true;
+        try {
+          const params = new URLSearchParams();
+          if (form.model_class) params.append('model_class', form.model_class);
+          if (form.has_pivot && form.pivot_table) params.append('table', form.pivot_table);
+
+          const res = await apiFetch(`/model-columns?${params.toString()}`);
+          availableColumns.value = res.columns || [];
+        } catch (e) {
+          console.warn('Impossibile caricare le colonne del modello:', e);
+          availableColumns.value = [];
+        } finally {
+          isLoadingColumns.value = false;
+        }
+      };
+
       const autoFillFields = () => {
         const targetModel = getModelMeta(form.model_class);
         const scopeModel = getModelMeta(form.scope_filter);
@@ -89,6 +116,76 @@
           form.pivot_foreign_key = '';
           form.target_foreign_key = '';
         }
+
+        loadModelColumns();
+      };
+
+      const addCondition = () => {
+        conditions.value.push({
+          column: availableColumns.value[0] || '',
+          operator: '=',
+          value: ''
+        });
+        syncConditionsToRawJson();
+      };
+
+      const addConditionPreset = (col, op, val) => {
+        conditions.value.push({
+          column: col,
+          operator: op,
+          value: val
+        });
+        syncConditionsToRawJson();
+      };
+
+      const removeCondition = (idx) => {
+        conditions.value.splice(idx, 1);
+        syncConditionsToRawJson();
+      };
+
+      const syncConditionsToRawJson = () => {
+        const valid = conditions.value.filter(c => c.column && c.column.trim());
+        if (valid.length === 0) {
+          rawAdditionalWhere.value = '';
+          form.additional_where = null;
+        } else {
+          rawAdditionalWhere.value = JSON.stringify(valid, null, 2);
+          form.additional_where = valid;
+        }
+        jsonError.value = false;
+      };
+
+      const syncRawJsonToConditions = () => {
+        if (!rawAdditionalWhere.value || !rawAdditionalWhere.value.trim()) {
+          conditions.value = [];
+          form.additional_where = null;
+          jsonError.value = false;
+          return;
+        }
+        try {
+          const parsed = JSON.parse(rawAdditionalWhere.value);
+          jsonError.value = false;
+
+          // Se è una lista di regole
+          if (Array.isArray(parsed)) {
+            conditions.value = parsed.map(c => ({
+              column: c.column || c.field || '',
+              operator: c.operator || '=',
+              value: c.value !== undefined ? c.value : ''
+            }));
+            form.additional_where = parsed;
+          } else if (typeof parsed === 'object') {
+            // Se è una mappa legacy {"stato": "attivo"}
+            conditions.value = Object.entries(parsed).map(([k, v]) => ({
+              column: k,
+              operator: v === null ? 'IS NULL' : '=',
+              value: v !== null ? v : ''
+            }));
+            form.additional_where = parsed;
+          }
+        } catch (e) {
+          jsonError.value = true;
+        }
       };
 
       const simulatedSql = computed(() => {
@@ -97,23 +194,44 @@
         const filterCol = form.filter_key || 'criterio_id';
         const targetKey = form.target_foreign_key || targetModel?.primary_key || 'id';
 
-        // Costruisci le clausole SQL dai filtri addizionali JSON
+        // Costruisci le clausole SQL dai filtri addizionali strutturati
         let extraSqlDirect = '';
         let extraSqlPivot = '';
-        if (form.additional_where && typeof form.additional_where === 'object' && Object.keys(form.additional_where).length > 0) {
-          for (const [col, val] of Object.entries(form.additional_where)) {
-            if (val === null) {
-              extraSqlDirect += `\n  AND \`${table}\`.\`${col}\` IS NULL`;
-              extraSqlPivot += `\n  AND \`${form.pivot_table || 'tabella_pivot'}\`.\`${col}\` IS NULL`;
-            } else if (typeof val === 'number' || typeof val === 'boolean') {
-              extraSqlDirect += `\n  AND \`${table}\`.\`${col}\` = ${val}`;
-              extraSqlPivot += `\n  AND \`${form.pivot_table || 'tabella_pivot'}\`.\`${col}\` = ${val}`;
-            } else {
-              extraSqlDirect += `\n  AND \`${table}\`.\`${col}\` = '${val}'`;
-              extraSqlPivot += `\n  AND \`${form.pivot_table || 'tabella_pivot'}\`.\`${col}\` = '${val}'`;
-            }
+        const validConditions = conditions.value.filter(c => c.column && c.column.trim());
+
+        validConditions.forEach(cond => {
+          const col = cond.column.trim();
+          const op = (cond.operator || '=').toUpperCase();
+          const val = cond.value;
+
+          let exprDirect = '';
+          let exprPivot = '';
+
+          if (op === 'IS NULL') {
+            exprDirect = `\`${table}\`.\`${col}\` IS NULL`;
+            exprPivot = `\`${form.pivot_table || 'tabella_pivot'}\`.\`${col}\` IS NULL`;
+          } else if (op === 'IS NOT NULL') {
+            exprDirect = `\`${table}\`.\`${col}\` IS NOT NULL`;
+            exprPivot = `\`${form.pivot_table || 'tabella_pivot'}\`.\`${col}\` IS NOT NULL`;
+          } else if (op === 'IN' || op === 'NOT IN') {
+            const list = String(val).split(',').map(s => `'${s.trim()}'`).join(', ');
+            exprDirect = `\`${table}\`.\`${col}\` ${op} (${list || "''"})`;
+            exprPivot = `\`${form.pivot_table || 'tabella_pivot'}\`.\`${col}\` ${op} (${list || "''"})`;
+          } else if (op === 'BETWEEN') {
+            const parts = String(val).split(',');
+            const low = parts[0] ? parts[0].trim() : '0';
+            const high = parts[1] ? parts[1].trim() : '100';
+            exprDirect = `\`${table}\`.\`${col}\` BETWEEN '${low}' AND '${high}'`;
+            exprPivot = `\`${form.pivot_table || 'tabella_pivot'}\`.\`${col}\` BETWEEN '${low}' AND '${high}'`;
+          } else {
+            const displayVal = (val === '@auth_id' || val === '@user.id') ? '5' : ((val === '@current_year') ? '2026' : (isNaN(val) ? `'${val}'` : val));
+            exprDirect = `\`${table}\`.\`${col}\` ${op} ${displayVal}`;
+            exprPivot = `\`${form.pivot_table || 'tabella_pivot'}\`.\`${col}\` ${op} ${displayVal}`;
           }
-        }
+
+          extraSqlDirect += `\n  AND ${exprDirect}`;
+          extraSqlPivot += `\n  AND ${exprPivot}`;
+        });
 
         if (!form.has_pivot) {
           return `SELECT * FROM \`${table}\`\nWHERE \`${table}\`.\`${filterCol}\` IN (1, 2, 5)${extraSqlDirect};`;
@@ -147,47 +265,20 @@
         }
       };
 
-      const rawAdditionalWhere = ref('');
-      const jsonError = ref(false);
-
-      const setJsonPreset = (key, val) => {
-        let current = {};
-        try {
-          if (rawAdditionalWhere.value) {
-            current = JSON.parse(rawAdditionalWhere.value);
-          }
-        } catch (e) {
-          current = {};
-        }
-        current[key] = val;
-        rawAdditionalWhere.value = JSON.stringify(current, null, 2);
-        validateJson();
-      };
-
-      const validateJson = () => {
-        if (!rawAdditionalWhere.value || !rawAdditionalWhere.value.trim()) {
-          form.additional_where = null;
-          jsonError.value = false;
-          return;
-        }
-        try {
-          const parsed = JSON.parse(rawAdditionalWhere.value);
-          form.additional_where = parsed;
-          jsonError.value = false;
-        } catch (e) {
-          jsonError.value = true;
-        }
-      };
-
       const saveDefinition = async () => {
-        validateJson();
-        if (jsonError.value) {
-          showToast('Il formato JSON dei filtri addizionali non è valido.', 'error');
-          return;
+        if (conditionMode.value === 'raw') {
+          syncRawJsonToConditions();
+          if (jsonError.value) {
+            showToast('Il formato JSON dei filtri addizionali non è valido.', 'error');
+            return;
+          }
+        } else {
+          syncConditionsToRawJson();
         }
 
         isSubmitting.value = true;
         try {
+          const validConditions = conditions.value.filter(c => c.column && c.column.trim());
           await apiFetch('/filter-definitions', {
             method: 'POST',
             body: JSON.stringify({
@@ -198,7 +289,7 @@
               target_foreign_key: form.has_pivot && form.target_foreign_key ? form.target_foreign_key : null,
               filter_key: form.filter_key,
               parent_column: form.parent_column ? form.parent_column : null,
-              additional_where: form.additional_where
+              additional_where: validConditions.length > 0 ? validConditions : null
             })
           });
           showToast('Regola di visibilità salvata con successo!');
@@ -532,10 +623,18 @@
         loadSummary,
         goToConfigureUser,
         goToCloneUser,
+        availableColumns,
+        isLoadingColumns,
+        conditionMode,
+        conditions,
+        loadModelColumns,
+        addCondition,
+        addConditionPreset,
+        removeCondition,
+        syncConditionsToRawJson,
+        syncRawJsonToConditions,
         rawAdditionalWhere,
         jsonError,
-        validateJson,
-        setJsonPreset,
         availableCriteria,
         getTargetModelsForScope,
         currentScopeTargetModels
