@@ -38,6 +38,10 @@ return new class extends Migration
             // Relazione polimorfica: filterable_type + filterable_id
             $table->morphs('filterable');
 
+            // Modello specifico protetto (opzionale, null = tutte le schede che usano questo criterio)
+            $table->string('target_model')->nullable()
+                  ->comment('Modello specifico protetto (se null, vale globalmente per tutte le regole del criterio).');
+
             // Risoluzione gerarchica ad albero
             $table->boolean('include_children')->default(false);
             $table->string('parent_column')->nullable()

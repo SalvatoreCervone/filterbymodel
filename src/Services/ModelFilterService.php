@@ -60,6 +60,10 @@ class ModelFilterService
 
         $userFilters = UserFilter::where($userFk, $userId)
             ->whereIn('filterable_type', $allowedDefinitions->keys())
+            ->where(function ($query) use ($modelClass) {
+                $query->whereNull('target_model')
+                      ->orWhere('target_model', $modelClass);
+            })
             ->get();
 
         if ($userFilters->isEmpty()) {

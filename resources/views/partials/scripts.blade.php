@@ -231,10 +231,25 @@
 
       const userForm = reactive({
         scope_filter: '',
+        target_model: '',
         filterable_id: '',
         group: 1,
         include_children: false,
         parent_column: ''
+      });
+
+      const currentScopeTargetModels = computed(() => {
+        if (!userForm.scope_filter) return [];
+        const list = [];
+        definitions.value.forEach(def => {
+          if (def.scope_filter === userForm.scope_filter) {
+            list.push({
+              class: def.model_class,
+              name: formatClassName(def.model_class)
+            });
+          }
+        });
+        return list;
       });
 
       const onUserSearchInput = () => {
@@ -270,10 +285,44 @@
         }
       };
 
+      const availableCriteria = computed(() => {
+        const map = {};
+        definitions.value.forEach(def => {
+          if (!map[def.scope_filter]) {
+            map[def.scope_filter] = {
+              scope_filter: def.scope_filter,
+              name: formatClassName(def.scope_filter),
+              target_models: [],
+              parent_column: def.parent_column || null
+            };
+          }
+          const modelName = formatClassName(def.model_class);
+          if (!map[def.scope_filter].target_models.includes(modelName)) {
+            map[def.scope_filter].target_models.push(modelName);
+          }
+          if (def.parent_column && !map[def.scope_filter].parent_column) {
+            map[def.scope_filter].parent_column = def.parent_column;
+          }
+        });
+        return Object.values(map);
+      });
+
+      const getTargetModelsForScope = (scopeFilter) => {
+        const models = [];
+        definitions.value.forEach(def => {
+          if (def.scope_filter === scopeFilter) {
+            const name = formatClassName(def.model_class);
+            if (!models.includes(name)) models.push(name);
+          }
+        });
+        return models;
+      };
+
       const onScopeFilterChange = () => {
-        const selectedDef = definitions.value.find(d => d.scope_filter === userForm.scope_filter);
-        if (selectedDef && selectedDef.parent_column) {
-          userForm.parent_column = selectedDef.parent_column;
+        userForm.target_model = '';
+        const selectedCrit = availableCriteria.value.find(c => c.scope_filter === userForm.scope_filter);
+        if (selectedCrit && selectedCrit.parent_column) {
+          userForm.parent_column = selectedCrit.parent_column;
           userForm.include_children = true;
         }
       };
@@ -289,11 +338,13 @@
         const isDuplicate = currentUserFilters.value.some(f => 
           f.filterable_type === userForm.scope_filter &&
           String(f.filterable_id) === String(userForm.filterable_id) &&
-          Number(f.group) === Number(userForm.group || 1)
+          Number(f.group) === Number(userForm.group || 1) &&
+          (f.target_model || null) === (userForm.target_model || null)
         );
 
         if (isDuplicate) {
-          showToast(`Questa competenza è già stata assegnata all'operatore per il Gruppo ${userForm.group || 1}.`, 'error');
+          const targetText = userForm.target_model ? `per ${formatClassName(userForm.target_model)}` : 'a livello globale';
+          showToast(`Questa competenza è già stata assegnata all'operatore ${targetText} per il Gruppo ${userForm.group || 1}.`, 'error');
           return;
         }
 
@@ -304,6 +355,7 @@
               user_id: selectedUser.value.id,
               filterable_type: userForm.scope_filter,
               filterable_id: userForm.filterable_id,
+              target_model: userForm.target_model ? userForm.target_model : null,
               group: userForm.group || 1,
               include_children: userForm.include_children,
               parent_column: userForm.parent_column ? userForm.parent_column : null
@@ -483,7 +535,10 @@
         rawAdditionalWhere,
         jsonError,
         validateJson,
-        setJsonPreset
+        setJsonPreset,
+        availableCriteria,
+        getTargetModelsForScope,
+        currentScopeTargetModels
       };
     }
   }).mount('#app');

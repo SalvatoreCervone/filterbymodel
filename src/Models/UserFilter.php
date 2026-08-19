@@ -15,6 +15,7 @@ class UserFilter extends Model
         'user_id',
         'filterable_type',
         'filterable_id',
+        'target_model',
         'include_children',
         'parent_column',
         'group',

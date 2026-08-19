@@ -14,41 +14,57 @@
       <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-start">
         
         <!-- 1. Cosa vuoi filtrare (Definizione / Scope) -->
-        <div class="sm:col-span-5 space-y-1">
+        <div class="sm:col-span-4 space-y-1">
           <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide">
             1. Criterio di Competenza
           </label>
           <select 
-            v-model="selectedId" 
-            @change="handleTypeChange" 
+            v-model="form.filterable_type" 
+            @change="form.target_model = ''"
             class="w-full border border-slate-300 rounded-xl p-2.5 bg-slate-50/70 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition" 
             required
           >
-            <option value="">-- Seleziona Ambito di Filtro --</option>
-            <option v-for="def in definitions" :key="def.id" :value="def.id">
-              {{ formatClassName(def.scope_filter) }} (per {{ formatClassName(def.model_class) }})
+            <option value="">-- Seleziona Criterio --</option>
+            <option v-for="crit in availableCriteria" :key="crit.scope_filter" :value="crit.scope_filter">
+              {{ crit.name }} (protegge: {{ crit.target_models.join(', ') }})
             </option>
           </select>
           <p class="text-[10px] text-slate-400">Determina su quale entità viene applicata la restrizione.</p>
         </div>
 
-        <!-- 2. Valore del Filtro (ID) -->
+        <!-- 1.bis Ambito di Validità (Globale o Modello Specifico) -->
         <div class="sm:col-span-3 space-y-1">
           <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide">
-            2. ID Valore / Codice
+            Ambito Validità
+          </label>
+          <select 
+            v-model="form.target_model" 
+            class="w-full border border-slate-300 rounded-xl p-2.5 bg-slate-50/70 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition" 
+          >
+            <option value="">Tutte le schede (Globale)</option>
+            <option v-for="m in currentScopeTargetModels" :key="m.class" :value="m.class">
+              Solo per {{ m.name }}
+            </option>
+          </select>
+          <p class="text-[10px] text-slate-400">Globale o per scheda specifica.</p>
+        </div>
+
+        <!-- 2. Valore del Filtro (ID) -->
+        <div class="sm:col-span-2 space-y-1">
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide">
+            2. ID Valore
           </label>
           <input 
             type="text" 
             v-model="form.filterable_id" 
-            placeholder="es. 10 o UFF-01" 
+            placeholder="es. 10" 
             class="w-full border border-slate-300 rounded-xl p-2.5 text-xs sm:text-sm font-mono bg-white focus:ring-2 focus:ring-indigo-500 transition" 
             required 
           />
-          <p class="text-[10px] text-slate-400">L'ID o codice dell'elemento autorizzato.</p>
         </div>
 
         <!-- 3. Gruppo Logico (AND / OR) -->
-        <div class="sm:col-span-2 space-y-1">
+        <div class="sm:col-span-1 space-y-1">
           <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide">
             3. Gruppo
           </label>
@@ -59,7 +75,6 @@
             class="w-full border border-slate-300 rounded-xl p-2.5 text-xs sm:text-sm font-mono bg-white focus:ring-2 focus:ring-indigo-500 transition" 
             required 
           />
-          <p class="text-[10px] text-slate-400">Stesso gruppo = AND, diverso = OR.</p>
         </div>
 
         <!-- 4. Pulsante Salva -->
@@ -119,7 +134,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch } from 'vue';
+import { ref, reactive, watch, computed } from 'vue';
 import { filterService } from '../../services/filterService';
 
 const props = defineProps({
@@ -135,14 +150,50 @@ const props = defineProps({
 
 const emit = defineEmits(['filter-created']);
 
-const selectedId = ref('');
 const form = reactive({ 
   user_id: props.selectedUserId, 
   filterable_type: '', 
+  target_model: '',
   filterable_id: '',  
   include_children: false,
   parent_column: '',
   group: 1 
+});
+
+const currentScopeTargetModels = computed(() => {
+  if (!form.filterable_type) return [];
+  const list = [];
+  props.definitions.forEach(def => {
+    if (def.scope_filter === form.filterable_type) {
+      list.push({
+        class: def.model_class,
+        name: formatClassName(def.model_class)
+      });
+    }
+  });
+  return list;
+});
+
+const availableCriteria = computed(() => {
+  const map = {};
+  props.definitions.forEach(def => {
+    if (!map[def.scope_filter]) {
+      map[def.scope_filter] = {
+        scope_filter: def.scope_filter,
+        name: formatClassName(def.scope_filter),
+        target_models: [],
+        parent_column: def.parent_column || null
+      };
+    }
+    const modelName = formatClassName(def.model_class);
+    if (!map[def.scope_filter].target_models.includes(modelName)) {
+      map[def.scope_filter].target_models.push(modelName);
+    }
+    if (def.parent_column && !map[def.scope_filter].parent_column) {
+      map[def.scope_filter].parent_column = def.parent_column;
+    }
+  });
+  return Object.values(map);
 });
 
 // Aggiorna l'user_id non appena cambia la prop
@@ -155,11 +206,6 @@ const formatClassName = (fullClass) => {
   return fullClass.split('\\').pop();
 };
 
-const handleTypeChange = () => {
-  const def = props.definitions.find(d => d.id == selectedId.value);
-  form.filterable_type = def ? def.scope_filter : '';
-};
-
 const handleSubmit = async () => {
   try {
     form.user_id = props.selectedUserId;
@@ -169,7 +215,6 @@ const handleSubmit = async () => {
     // Reset del form
     form.filterable_id = '';
     form.include_children = false;
-    selectedId.value = '';
     emit('filter-created');
   } catch (err) {
     const errorMsg = err.response?.data?.message || err.message || "Errore durante il salvataggio del filtro.";

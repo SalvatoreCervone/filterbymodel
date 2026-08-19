@@ -119,11 +119,26 @@
             class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-semibold text-slate-800 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20"
             required
           >
-            <option value="">-- Seleziona Criterio Configurato (es. Ufficio, Sede) --</option>
-            <option v-for="def in definitions" :key="def.id" :value="def.scope_filter">
-              @{{ formatClassName(def.scope_filter) }} (per @{{ formatClassName(def.model_class) }})
+            <option value="">-- Seleziona Criterio (es. Ufficio, Sede, Qualifica...) --</option>
+            <option v-for="crit in availableCriteria" :key="crit.scope_filter" :value="crit.scope_filter">
+              @{{ crit.name }} (protegge: @{{ crit.target_models.join(', ') }})
             </option>
           </select>
+        </div>
+
+        <!-- AMBITO DI VALIDITÀ DELLA COMPETENZA (GLOBALE O MODELLO SPECIFICO) -->
+        <div v-if="userForm.scope_filter">
+          <label class="block text-xs font-bold text-slate-700 mb-1">Ambito di Validità</label>
+          <select 
+            v-model="userForm.target_model" 
+            class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-semibold text-slate-800 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 bg-slate-50/50"
+          >
+            <option value="">Tutte le schede collegate (Globale)</option>
+            <option v-for="m in currentScopeTargetModels" :key="m.class" :value="m.class">
+              Solo per @{{ m.name }}
+            </option>
+          </select>
+          <p class="text-[10px] text-slate-400 mt-1">Scegli se la competenza vale ovunque o solo per una specifica scheda.</p>
         </div>
 
         <div>
@@ -200,12 +215,50 @@
           :key="f.id"
           class="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-4"
         >
-          <div class="space-y-1 text-xs">
-            <div class="flex items-center gap-2">
+          <div class="space-y-1.5 text-xs">
+            <div class="flex items-center gap-2 flex-wrap">
               <span class="font-extrabold text-slate-900">@{{ formatClassName(f.filterable_type) }}</span>
               <span class="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded font-mono font-bold text-[11px]">ID: @{{ f.filterable_id }}</span>
               <span class="px-2 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-bold">Gruppo @{{ f.group }}</span>
+
+              <!-- Badge Ambito Specifico / Globale -->
+              <span 
+                v-if="f.target_model" 
+                class="px-2 py-0.5 bg-amber-100 text-amber-800 border border-amber-200 rounded text-[10px] font-bold"
+              >
+                Solo per @{{ formatClassName(f.target_model) }}
+              </span>
+              <span 
+                v-else 
+                class="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[10px] font-semibold"
+              >
+                Globale
+              </span>
             </div>
+
+            <!-- Modelli governati/protetti da questa competenza -->
+            <div class="flex items-center gap-1.5 flex-wrap text-[11px] text-slate-600">
+              <span class="text-slate-400 font-medium">Protegge:</span>
+              <span 
+                v-if="f.target_model" 
+                class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md font-semibold text-[10px]"
+              >
+                @{{ formatClassName(f.target_model) }}
+              </span>
+              <template v-else>
+                <span 
+                  v-for="m in getTargetModelsForScope(f.filterable_type)" 
+                  :key="m" 
+                  class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md font-semibold text-[10px]"
+                >
+                  @{{ m }}
+                </span>
+                <span v-if="getTargetModelsForScope(f.filterable_type).length === 0" class="text-slate-400 italic text-[10px]">
+                  Nessuna scheda associata
+                </span>
+              </template>
+            </div>
+
             <div v-if="f.include_children" class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
               Include tutti i sotto-nodi gerarchici discendenti

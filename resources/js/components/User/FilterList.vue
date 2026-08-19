@@ -28,6 +28,7 @@
         <thead>
           <tr class="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             <th class="px-6 py-3.5">Criterio (Tipo Oggetto)</th>
+            <th class="px-6 py-3.5">Ambito Validità</th>
             <th class="px-6 py-3.5">ID / Valore Autorizzato</th>
             <th class="px-6 py-3.5">Gruppo Logico</th>
             <th class="px-6 py-3.5">Gerarchia Albero</th>
@@ -39,6 +40,20 @@
             <td class="px-6 py-4 whitespace-nowrap">
               <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
                 {{ formatClassName(filter.filterable_type) }}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span 
+                v-if="filter.target_model" 
+                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200"
+              >
+                Solo per {{ formatClassName(filter.target_model) }}
+              </span>
+              <span 
+                v-else 
+                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600"
+              >
+                Tutte le schede (Globale)
               </span>
             </td>
             <td class="px-6 py-4 font-mono font-bold text-slate-900">

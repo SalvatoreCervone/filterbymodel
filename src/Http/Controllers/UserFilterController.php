@@ -39,21 +39,31 @@ class UserFilterController extends Controller
             $userFk            => 'required',
             'filterable_type'  => 'required|string|max:255',
             'filterable_id'    => 'required',
+            'target_model'     => 'nullable|string|max:255',
             'include_children' => 'sometimes|boolean',
             'parent_column'    => 'nullable|string|max:255',
             'group'            => 'required|integer|min:1',
         ]);
 
-        // Verifica duplicati: evita l'assegnazione duplicata dello stesso filtro/gruppo all'utente
-        $exists = UserFilter::where($userFk, $validated[$userFk])
+        $targetModel = !empty($validated['target_model']) ? $validated['target_model'] : null;
+        $validated['target_model'] = $targetModel;
+
+        // Verifica duplicati: evita l'assegnazione duplicata dello stesso filtro/gruppo/target_model all'utente
+        $query = UserFilter::where($userFk, $validated[$userFk])
             ->where('filterable_type', $validated['filterable_type'])
             ->where('filterable_id', $validated['filterable_id'])
-            ->where('group', $validated['group'])
-            ->exists();
+            ->where('group', $validated['group']);
 
-        if ($exists) {
+        if ($targetModel !== null) {
+            $query->where('target_model', $targetModel);
+        } else {
+            $query->whereNull('target_model');
+        }
+
+        if ($query->exists()) {
+            $targetLabel = $targetModel ? 'per la scheda ' . class_basename($targetModel) : 'a livello globale';
             return response()->json([
-                'message' => 'Questa competenza è già stata assegnata all\'operatore per il Gruppo ' . $validated['group'] . '.',
+                'message' => "Questa competenza è già stata assegnata all'operatore {$targetLabel} per il Gruppo {$validated['group']}.",
             ], 422);
         }
 
@@ -119,13 +129,18 @@ class UserFilterController extends Controller
 
                 foreach ($sourceFilters as $sourceFilter) {
                     if ($mode === 'merge') {
-                        $exists = UserFilter::where($userFk, $targetUserId)
+                        $q = UserFilter::where($userFk, $targetUserId)
                             ->where('filterable_type', $sourceFilter->filterable_type)
                             ->where('filterable_id', $sourceFilter->filterable_id)
-                            ->where('group', $sourceFilter->group)
-                            ->exists();
+                            ->where('group', $sourceFilter->group);
 
-                        if ($exists) {
+                        if ($sourceFilter->target_model !== null) {
+                            $q->where('target_model', $sourceFilter->target_model);
+                        } else {
+                            $q->whereNull('target_model');
+                        }
+
+                        if ($q->exists()) {
                             continue;
                         }
                     }
@@ -134,6 +149,7 @@ class UserFilterController extends Controller
                         $userFk            => $targetUserId,
                         'filterable_type'  => $sourceFilter->filterable_type,
                         'filterable_id'    => $sourceFilter->filterable_id,
+                        'target_model'     => $sourceFilter->target_model,
                         'include_children' => $sourceFilter->include_children,
                         'parent_column'    => $sourceFilter->parent_column,
                         'group'            => $sourceFilter->group,
