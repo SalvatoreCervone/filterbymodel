@@ -97,12 +97,30 @@
         const filterCol = form.filter_key || 'criterio_id';
         const targetKey = form.target_foreign_key || targetModel?.primary_key || 'id';
 
+        // Costruisci le clausole SQL dai filtri addizionali JSON
+        let extraSqlDirect = '';
+        let extraSqlPivot = '';
+        if (form.additional_where && typeof form.additional_where === 'object' && Object.keys(form.additional_where).length > 0) {
+          for (const [col, val] of Object.entries(form.additional_where)) {
+            if (val === null) {
+              extraSqlDirect += `\n  AND \`${table}\`.\`${col}\` IS NULL`;
+              extraSqlPivot += `\n  AND \`${form.pivot_table || 'tabella_pivot'}\`.\`${col}\` IS NULL`;
+            } else if (typeof val === 'number' || typeof val === 'boolean') {
+              extraSqlDirect += `\n  AND \`${table}\`.\`${col}\` = ${val}`;
+              extraSqlPivot += `\n  AND \`${form.pivot_table || 'tabella_pivot'}\`.\`${col}\` = ${val}`;
+            } else {
+              extraSqlDirect += `\n  AND \`${table}\`.\`${col}\` = '${val}'`;
+              extraSqlPivot += `\n  AND \`${form.pivot_table || 'tabella_pivot'}\`.\`${col}\` = '${val}'`;
+            }
+          }
+        }
+
         if (!form.has_pivot) {
-          return `SELECT * FROM \`${table}\` WHERE \`${table}\`.\`${filterCol}\` IN (1, 2, 5);`;
+          return `SELECT * FROM \`${table}\`\nWHERE \`${table}\`.\`${filterCol}\` IN (1, 2, 5)${extraSqlDirect};`;
         } else {
           const pivot = form.pivot_table || `${table}_criteri`;
           const pivotFk = form.pivot_foreign_key || (targetModel?.foreign_key || `${formatClassName(form.model_class).toLowerCase()}_id`);
-          return `SELECT * FROM \`${table}\` WHERE EXISTS (\n  SELECT 1 FROM \`${pivot}\`\n  WHERE \`${pivot}\`.\`${pivotFk}\` = \`${table}\`.\`${targetKey}\`\n  AND \`${pivot}\`.\`${filterCol}\` IN (1, 2, 5)\n);`;
+          return `SELECT * FROM \`${table}\`\nWHERE EXISTS (\n  SELECT 1 FROM \`${pivot}\`\n  WHERE \`${pivot}\`.\`${pivotFk}\` = \`${table}\`.\`${targetKey}\`\n  AND \`${pivot}\`.\`${filterCol}\` IN (1, 2, 5)${extraSqlPivot}\n);`;
         }
       });
 

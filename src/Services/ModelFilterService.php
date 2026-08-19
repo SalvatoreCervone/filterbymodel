@@ -183,7 +183,11 @@ class ModelFilterService
 
                             if (!$skipAdditional && !empty($data['additional_where'])) {
                                 foreach ($data['additional_where'] as $column => $value) {
-                                    $subQuery->where($tableName . '.' . $column, $value);
+                                    if ($value === null) {
+                                        $subQuery->whereNull($tableName . '.' . $column);
+                                    } else {
+                                        $subQuery->where($tableName . '.' . $column, $value);
+                                    }
                                 }
                             }
                         } else {
@@ -199,7 +203,11 @@ class ModelFilterService
 
                                 if (!$skipAdditional && !empty($data['additional_where'])) {
                                     foreach ($data['additional_where'] as $column => $value) {
-                                        $query->where($column, $value);
+                                        if ($value === null) {
+                                            $query->whereNull($column);
+                                        } else {
+                                            $query->where($column, $value);
+                                        }
                                     }
                                 }
                             });
@@ -225,7 +233,11 @@ class ModelFilterService
 
                 if (!empty($data['additional_where'])) {
                     foreach ($data['additional_where'] as $column => $value) {
-                        if ($modelInstance->{$column} != $value) {
+                        if ($value === null) {
+                            if ($modelInstance->{$column} !== null) {
+                                return false;
+                            }
+                        } elseif ($modelInstance->{$column} != $value) {
                             return false;
                         }
                     }
@@ -242,7 +254,11 @@ class ModelFilterService
 
                 if (!empty($data['additional_where'])) {
                     foreach ($data['additional_where'] as $column => $value) {
-                        $query->where($column, $value);
+                        if ($value === null) {
+                            $query->whereNull($column);
+                        } else {
+                            $query->where($column, $value);
+                        }
                     }
                 }
 
