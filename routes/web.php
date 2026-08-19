@@ -16,3 +16,4 @@ use SalvatoreCervone\FilterByModel\Http\Controllers\AdminDashboardController;
 */
 
 Route::get('/', [AdminDashboardController::class, 'index'])->name('filterbymodel.dashboard');
+Route::get('/assets/{path}', \SalvatoreCervone\FilterByModel\Http\Controllers\AssetController::class)->where('path', '.*')->name('filterbymodel.asset');

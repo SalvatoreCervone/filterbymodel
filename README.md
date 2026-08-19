@@ -42,6 +42,7 @@ php artisan vendor:publish --tag=filterbymodel
 
 | Comando                                                     | Tag                        | Destinazione                             | Descrizione                                          |
 | ----------------------------------------------------------- | -------------------------- | ---------------------------------------- | ---------------------------------------------------- |
+| `php artisan vendor:publish --tag=filterbymodel-assets`     | `filterbymodel-assets`     | `public/vendor/filterbymodel/`           | Asset compilati autonomi (CSS minificato, Vue 3 runtime) |
 | `php artisan vendor:publish --tag=filterbymodel-views`      | `filterbymodel-views`      | `resources/views/vendor/filterbymodel/`  | Vista Blade della Dashboard Amministrativa           |
 | `php artisan vendor:publish --tag=filterbymodel-vue`        | `filterbymodel-vue`        | `resources/js/Components/FilterByModel/` | Componenti Vue 3 per la UI (Inertia/Vite)           |
 | `php artisan vendor:publish --tag=filterbymodel-services`   | `filterbymodel-services`   | `resources/js/services/`                 | Client API JS (`filterService.js`)                   |

@@ -6,20 +6,18 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>FilterByModel - Dashboard Amministrativa</title>
   
-  <!-- CDN Tailwind CSS & Vue 3 -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-  
-  <!-- Font Typography -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
-    [v-cloak] { display: none; }
-  </style>
+  <!-- CSS & Vue 3 Locali (Nessuna CDN esterna, Offline-Ready, Conforme GDPR) -->
+  @if (file_exists(public_path('vendor/filterbymodel/css/filterbymodel.css')))
+    <link rel="stylesheet" href="{{ asset('vendor/filterbymodel/css/filterbymodel.css') }}">
+  @else
+    <link rel="stylesheet" href="{{ route('filterbymodel.asset', ['path' => 'css/filterbymodel.css']) }}">
+  @endif
+
+  @if (file_exists(public_path('vendor/filterbymodel/js/vue.global.prod.js')))
+    <script src="{{ asset('vendor/filterbymodel/js/vue.global.prod.js') }}"></script>
+  @else
+    <script src="{{ route('filterbymodel.asset', ['path' => 'js/vue.global.prod.js']) }}"></script>
+  @endif
 </head>
 <body class="bg-slate-100/80 text-slate-800 antialiased min-h-screen">
   <div id="app" class="pb-16" v-cloak>

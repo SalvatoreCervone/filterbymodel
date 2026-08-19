@@ -179,6 +179,11 @@ class FilterByModelServiceProvider extends ServiceProvider
             __DIR__ . '/../resources/js/services/' => resource_path('js/services'),
         ], 'filterbymodel-services');
 
+        // Pubblicazione degli asset compilati della Dashboard (CSS minificato, Vue 3 runtime locale)
+        $this->publishes([
+            __DIR__ . '/../public' => public_path('vendor/filterbymodel'),
+        ], 'filterbymodel-assets');
+
         // Tag unico per pubblicare tutto in una volta
         $this->publishes([
             __DIR__ . '/../config/filterbymodel.php'    => config_path('filterbymodel.php'),
@@ -186,6 +191,7 @@ class FilterByModelServiceProvider extends ServiceProvider
             __DIR__ . '/../resources/views'              => resource_path('views/vendor/filterbymodel'),
             __DIR__ . '/../resources/js/components/'     => resource_path('js/Components/FilterByModel'),
             __DIR__ . '/../resources/js/services/'       => resource_path('js/services'),
+            __DIR__ . '/../public'                       => public_path('vendor/filterbymodel'),
         ], 'filterbymodel');
     }
 }
