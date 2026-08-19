@@ -4,13 +4,14 @@ Package Laravel per la **sicurezza perimetrale** e il **filtraggio dati a livell
 
 ## Funzionalità
 
+- **Protezione Automatica Zero-Code (Novità)**: Protegge automaticamente tutti i modelli con regole definite senza richiedere di modificare il codice sorgente o inserire Trait.
 - **Filtraggio automatico in lettura**: Global Scope Eloquent che limita i risultati delle query in base ai permessi dell'utente autenticato.
 - **Validazione in scrittura/cancellazione**: Intercettazione automatica degli eventi `saving` e `deleting` per verificare il perimetro di sicurezza.
-- **Relazioni Dirette (1:N) e Pivot (N:M)**: Supporto completo per entrambi i tipi di collegamento tra modelli.
-- **Gerarchia ad albero**: Opzione `include_children` per includere automaticamente i figli nella catena gerarchica (`padre_id`).
+- **Relazioni Dirette (1:N) e Pivot (N:M)**: Supporto completo per entrambi i tipi di collegamento tra modelli e tabelle ponte.
+- **Gerarchia ad albero**: Opzione `include_children` per includere automaticamente i discendenti nella catena gerarchica (`padre_id`).
 - **Gruppi logici AND/OR**: I filtri nello stesso gruppo operano in AND, gruppi diversi in OR.
-- **Condizioni aggiuntive JSON**: Filtri extra configurabili in formato JSON (`additional_where`).
-- **Maschere Vue 3 con Query Preview**: Componenti frontend moderni per la gestione admin e utente con simulazione live della query SQL.
+- **Condizioni aggiuntive JSON**: Filtri extra configurabili in formato JSON (`additional_where`) con supporto valori `null`, stringhe e numeri.
+- **Maschere Vue 3 con Live SQL Preview**: Componenti frontend moderni per la gestione admin e utente con simulazione live della query SQL.
 
 ## Installazione
 
@@ -155,9 +156,25 @@ La dashboard include 3 sezioni integrate:
 
 ## Utilizzo Backend
 
-### 1. Proteggere un Modello Eloquent
+### 1. Protezione Automatica Zero-Code (Predefinita ⭐)
 
-Aggiungi il trait al modello che desideri proteggere con la sicurezza perimetrale:
+Di default, il package ha attiva la modalità **Auto-Apply** (`'auto_apply_to_all_models' => true`).
+
+Questo significa che **non devi modificare i tuoi modelli Eloquent**:
+- Non serve aggiungere alcun Trait.
+- Non appena configuri una regola nella Dashboard per un modello (es. `App\Models\Anagraficaassenza`), Laravel applicherà **automaticamente** il Global Scope di lettura e i controlli in scrittura (`saving`) e cancellazione (`deleting`).
+- Funziona anche su modelli provenienti da **package esterni o directory vendor** su cui non puoi modificare il codice sorgente.
+
+---
+
+### 2. Protezione Manuale tramite Trait (Opzionale)
+
+Se preferisci specificare esplicitamente quali modelli proteggere a livello di codice, puoi disabilitare l'auto-applicazione in `.env`:
+```env
+FILTERBYMODEL_AUTO_APPLY=false
+```
+
+E aggiungere manualmente il Trait `HasModelFilters` (o l'equivalente italiano `IntercettaFiltriSistemi`) nei soli modelli desiderati:
 
 ```php
 <?php
@@ -165,19 +182,17 @@ Aggiungi il trait al modello che desideri proteggere con la sicurezza perimetral
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use SalvatoreCervone\FilterByModel\Traits\IntercettaFiltriSistemi;
-// oppure alias: use SalvatoreCervone\FilterByModel\Traits\HasModelFilters;
+use SalvatoreCervone\FilterByModel\Traits\HasModelFilters;
 
 class Anagrafica extends Model
 {
-    use IntercettaFiltriSistemi;
-    // oppure: use HasModelFilters;
+    use HasModelFilters;
 }
 ```
 
-Una volta applicato il trait, tutte le query su quel modello saranno **automaticamente filtrate in lettura e verificate in scrittura/cancellazione** in base ai permessi dell'utente autenticato.
+---
 
-### 2. Usare il Servizio Direttamente nel Codice
+### 3. Usare il Servizio Direttamente nel Codice
 
 ```php
 use SalvatoreCervone\FilterByModel\Services\ModelFilterService;

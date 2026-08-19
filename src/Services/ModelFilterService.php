@@ -272,6 +272,49 @@ class ModelFilterService
     }
 
     /**
+     * Valida i permessi di un record per operazioni di scrittura o cancellazione.
+     * Solleva una ValidationException se l'utente non possiede i permessi perimetrali.
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    public function validaPerimetroSicurezzaRecord(Model $modelInstance): void
+    {
+        // Se non vi è un utente autenticato / risolvibile, non applica il vincolo
+        if ($this->resolveUserId() === null) {
+            return;
+        }
+
+        $modelClass = get_class($modelInstance);
+        $resolvedGroups = $this->ottieniFiltriRisolti($modelClass);
+
+        // Se non sono stati configurati filtri per questo modello a DB, l'utente ha accesso
+        if (empty($resolvedGroups)) {
+            return;
+        }
+
+        $almenoUnGruppoEValido = false;
+
+        // Esegue la logica OR tra i vari gruppi impostati
+        foreach ($resolvedGroups as $groupId => $filtersByType) {
+            if ($this->verificaRecord($modelInstance, $filtersByType)) {
+                $almenoUnGruppoEValido = true;
+                break;
+            }
+        }
+
+        if (!$almenoUnGruppoEValido) {
+            $errorMessage = config(
+                'filterbymodel.security.unauthorized_message',
+                'Operazione bloccata. Non possiedi i requisiti di competenza necessari per interagire con questa risorsa.'
+            );
+
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'authorization' => $errorMessage,
+            ]);
+        }
+    }
+
+    /**
      * Risolve dinamicamente il nome della colonna padre per la gerarchia con rilevamento intelligente.
      * Ordine di priorità:
      * 1. Metodo sul modello: $model->getParentColumnName()

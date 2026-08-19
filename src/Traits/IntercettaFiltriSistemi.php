@@ -50,40 +50,6 @@ trait IntercettaFiltriSistemi
      */
     public function validaPerimetroSicurezza(): void
     {
-        $service = app(ModelFilterService::class);
-
-        // Se non vi è un utente autenticato / risolvibile, non applica il vincolo
-        if ($service->resolveUserId() === null) {
-            return;
-        }
-
-        // Rileva dinamicamente la classe del modello corrente che utilizza il Trait
-        $modelClass = static::class;
-        $resolvedGroups = $service->ottieniFiltriRisolti($modelClass);
-
-        if (empty($resolvedGroups)) {
-            return; // Se non sono stati configurati filtri per questo modello a DB, l'utente ha accesso
-        }
-
-        $almenoUnGruppoEValido = false;
-
-        // Esegue la logica OR tra i vari gruppi impostati
-        foreach ($resolvedGroups as $groupId => $filtersByType) {
-            if ($service->verificaRecord($this, $filtersByType)) {
-                $almenoUnGruppoEValido = true;
-                break; // Un gruppo valido è sufficiente per autorizzare l'operazione
-            }
-        }
-
-        if (!$almenoUnGruppoEValido) {
-            $errorMessage = config(
-                'filterbymodel.security.unauthorized_message',
-                'Operazione bloccata. Non possiedi i requisiti di competenza necessari per interagire con questa risorsa.'
-            );
-
-            throw ValidationException::withMessages([
-                'authorization' => $errorMessage,
-            ]);
-        }
+        app(ModelFilterService::class)->validaPerimetroSicurezzaRecord($this);
     }
 }

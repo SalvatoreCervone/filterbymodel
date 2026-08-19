@@ -115,6 +115,9 @@ return [
     */
 
     'security' => [
+        // Se true, applica automaticamente il Global Scope e i controlli a tutti i modelli con regole definite senza richiedere il trait
+        'auto_apply_to_all_models' => env('FILTERBYMODEL_AUTO_APPLY', true),
+
         'global_scope_name' => 'filter_by_model_security_perimeter',
         'auth_id_resolver' => null, // fn() => Auth::id(),
         'unauthorized_message' => 'Operazione bloccata. Non possiedi i requisiti di competenza necessari per interagire con questa risorsa.',

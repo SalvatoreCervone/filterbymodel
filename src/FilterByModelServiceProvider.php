@@ -26,7 +26,7 @@ class FilterByModelServiceProvider extends ServiceProvider
     }
 
     /**
-     * Avvia i servizi del package (migrazioni, rotte, viste, pubblicazioni).
+     * Avvia i servizi del package (migrazioni, rotte, viste, pubblicazioni, auto-binding modelli).
      */
     public function boot(): void
     {
@@ -34,6 +34,64 @@ class FilterByModelServiceProvider extends ServiceProvider
         $this->loadViews();
         $this->loadRoutes();
         $this->registerPublishing();
+        $this->registerAutoApplyModelFilters();
+    }
+
+    /**
+     * Registra l'applicazione automatica dei filtri di sicurezza a tutti i modelli Eloquent.
+     */
+    protected function registerAutoApplyModelFilters(): void
+    {
+        if (!config('filterbymodel.security.auto_apply_to_all_models', true)) {
+            return;
+        }
+
+        \Illuminate\Support\Facades\Event::listen('eloquent.booted: *', function (string $eventName, array $data) {
+            /** @var \Illuminate\Database\Eloquent\Model|null $model */
+            $model = $data[0] ?? null;
+            if (!$model instanceof \Illuminate\Database\Eloquent\Model) {
+                return;
+            }
+
+            $modelClass = get_class($model);
+
+            // Escludi i modelli interni del package
+            $ignored = config('filterbymodel.models.ignore', [
+                \SalvatoreCervone\FilterByModel\Models\FilterDefinition::class,
+                \SalvatoreCervone\FilterByModel\Models\UserFilter::class,
+            ]);
+
+            if (in_array($modelClass, $ignored, true)) {
+                return;
+            }
+
+            // Se il modello include già il trait manualmente, evita doppie registrazioni
+            $traits = class_uses_recursive($modelClass);
+            if (in_array(\SalvatoreCervone\FilterByModel\Traits\IntercettaFiltriSistemi::class, $traits, true) ||
+                in_array(\SalvatoreCervone\FilterByModel\Traits\HasModelFilters::class, $traits, true)) {
+                return;
+            }
+
+            $scopeName = config('filterbymodel.security.global_scope_name', 'filter_by_model_security_perimeter');
+
+            // 1. Registra Global Scope in lettura
+            $modelClass::addGlobalScope($scopeName, function (\Illuminate\Database\Eloquent\Builder $builder) {
+                $service = app(ModelFilterService::class);
+                if ($service->resolveUserId() !== null) {
+                    $service->applicaFiltroQuery($builder);
+                }
+            });
+
+            // 2. Intercetta in Scrittura (Salvataggio o Aggiornamento)
+            $modelClass::saving(function (\Illuminate\Database\Eloquent\Model $item) {
+                app(ModelFilterService::class)->validaPerimetroSicurezzaRecord($item);
+            });
+
+            // 3. Intercetta in Cancellazione
+            $modelClass::deleting(function (\Illuminate\Database\Eloquent\Model $item) {
+                app(ModelFilterService::class)->validaPerimetroSicurezzaRecord($item);
+            });
+        });
     }
 
     /**
