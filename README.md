@@ -4,14 +4,15 @@ Package Laravel per la **sicurezza perimetrale** e il **filtraggio dati a livell
 
 ## Funzionalità
 
-- **Protezione Automatica Zero-Code (Novità)**: Protegge automaticamente tutti i modelli con regole definite senza richiedere di modificare il codice sorgente o inserire Trait.
+- **Protezione Automatica Zero-Code**: Protegge automaticamente tutti i modelli con regole definite senza richiedere di modificare il codice sorgente o inserire Trait.
+- **Scoping Granulare per Modello Target (Novità)**: Possibilità di applicare una competenza utente a livello globale (su tutti i modelli che usano quel criterio) oppure circoscriverla selettivamente solo a specifici modelli target (es. solo per `Anagrafica` o `Contratto`).
 - **Filtraggio automatico in lettura**: Global Scope Eloquent che limita i risultati delle query in base ai permessi dell'utente autenticato.
 - **Validazione in scrittura/cancellazione**: Intercettazione automatica degli eventi `saving` e `deleting` per verificare il perimetro di sicurezza.
-- **Relazioni Dirette (1:N) e Pivot (N:M)**: Supporto completo per entrambi i tipi di collegamento tra modelli e tabelle ponte.
-- **Gerarchia ad albero**: Opzione `include_children` per includere automaticamente i discendenti nella catena gerarchica (`padre_id`).
+- **Relazioni Dirette (1:N) e Pivot (N:M)**: Supporto completo per entrambi i tipi di collegamento tra modelli, chiavi esterne personalizzate (`target_foreign_key`) e tabelle ponte.
+- **Gerarchia ad albero**: Opzione `include_children` per includere automaticamente i discendenti nella catena gerarchica (`padre_id`, `parent_id`, ecc.).
 - **Gruppi logici AND/OR**: I filtri nello stesso gruppo operano in AND, gruppi diversi in OR.
-- **Condizioni aggiuntive JSON**: Filtri extra configurabili in formato JSON (`additional_where`) con supporto valori `null`, stringhe e numeri.
-- **Maschere Vue 3 con Live SQL Preview**: Componenti frontend moderni per la gestione admin e utente con simulazione live della query SQL.
+- **Condizioni aggiuntive JSON**: Filtri extra configurabili in formato JSON (`additional_where`) con supporto per valori `null`, stringhe e numeri.
+- **Maschere Vue 3 con Live SQL Preview e Resoconto Globale**: Componenti frontend moderni per la gestione admin e utente con simulazione live della query SQL, autocomplete DB e clonazione rapida dei permessi.
 
 ## Installazione
 
@@ -235,8 +236,8 @@ Dopo aver eseguito `php artisan vendor:publish --tag=filterbymodel-vue`, i compo
 - **`User/UserSummaryTable.vue`** — **Datatable di Resoconto Globale**: panoramica di tutti gli utenti, filtri per stato (con permessi / senza vincoli), badge di conteggio regole e azioni rapide di configurazione e clonazione.
 - **`User/UserAutocomplete.vue`** — Autocomplete di ricerca operatore collegato al DB con debounce, navigazione da tastiera e supporto tabelle/campi custom.
 - **`User/CopyFiltersModal.vue`** — Modale per **clonare e duplicare i permessi** su 1 o più operatori contemporaneamente (con modalità _Replace_ o _Merge_).
-- **`User/FilterForm.vue`** — Modulo di assegnazione filtro con supporto inclusioni alberi gerarchici (`include_children`).
-- **`User/FilterList.vue`** — Tabella riassuntiva dei filtri attivi dell'utente con opzione di revoca.
+- **`User/FilterForm.vue`** — Modulo di assegnazione filtro con supporto inclusioni alberi gerarchici (`include_children`) e **scoping granulare per modello target** (permette di selezionare "Tutti i modelli" o scegliere specifici modelli a cui applicare la competenza).
+- **`User/FilterList.vue`** — Tabella riassuntiva dei filtri attivi dell'utente con visualizzazione del target di applicazione (badge con modello specifico o ambito globale) e opzione di revoca.
 
 ### Resoconto Globale e Panoramica Utenti
 
@@ -374,6 +375,26 @@ Quando si abilitano i nodi figli (`include_children`), il package calcola ricors
 
 - **Dalla UI Admin (`FilterDefinitionManager.vue`)**: puoi indicare esplicitamente il campo gerarchico (es. `parent_id`, `id_padre`, `padre_id`).
 - **Se lasciato vuoto**: usa `padre_id` (o la configurazione globale) oppure rileva automaticamente le colonne convenzionali su DB (`padre_id`, `parent_id`, `id_padre`, `parent_code`, `id_genitore`).
+
+### Scoping Granulare per Modello Target
+
+Di default, quando assegni a un utente una competenza su un'entità (es. *Azienda: ID 5*), tale filtro viene applicato su **tutti i modelli Eloquent** protetti che fanno riferimento a quella regola.
+
+Se invece desideri che un operatore veda una determinata sede o filiale solo su un modello specifico (ad esempio solo sulle `Fatture` ma non sulle `Presenze`), puoi selezionare i **Modelli Target**:
+- **Tutti i modelli** (default, `target_model = null`): la competenza si applica a tutte le entità collegate a quel criterio.
+- **Modelli specifici** (`target_model = App\Models\Fattura`): la competenza si applicherà unicamente a quel modello, lasciando inalterati gli altri.
+
+### Condizioni Aggiuntive JSON (`additional_where`)
+
+Nelle regole di visibilità puoi definire vincoli extra memorizzati come oggetto chiave-valore JSON:
+```json
+{
+  "deleted_at": null,
+  "is_active": true,
+  "tipo_record": "UFFICIALE"
+}
+```
+Il generatore SQL e il verificatore di sicurezza a runtime applicano automaticamente queste condizioni sia nelle query Eloquent (`whereNull` per valori nulli, `where` standard per scalari) sia nella validazione durante il salvataggio o la cancellazione dei record.
 
 ## Licenza
 
