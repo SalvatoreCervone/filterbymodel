@@ -367,9 +367,29 @@ class ModelFilterService
             foreach ($explicit as $item) {
                 if (isset($item['class']) && !in_array($item['class'], $ignoredClasses, true)) {
                     $name = $item['name'] ?? class_basename($item['class']);
+                    $table = null;
+                    $primaryKey = 'id';
+                    $foreignKey = null;
+
+                    if (class_exists($item['class'])) {
+                        try {
+                            $instance = new $item['class']();
+                            $table = $instance->getTable();
+                            $primaryKey = $instance->getKeyName();
+                            $foreignKey = $instance->getForeignKey();
+                        } catch (\Throwable $e) {
+                            $table = \Illuminate\Support\Str::snake(\Illuminate\Support\Str::pluralStudly($name));
+                            $foreignKey = \Illuminate\Support\Str::snake($name) . '_id';
+                        }
+                    }
+
                     $models[$item['class']] = [
-                        'class' => $item['class'],
-                        'name'  => $name,
+                        'class'       => $item['class'],
+                        'name'        => $name,
+                        'table'       => $table,
+                        'primary_key' => $primaryKey,
+                        'foreign_key' => $foreignKey,
+                        'snake_name'  => \Illuminate\Support\Str::snake($name),
                     ];
                 }
             }
@@ -419,9 +439,27 @@ class ModelFilterService
 
                         // Deve essere una sottoclasse di Eloquent Model, non astratta e non un Trait/Interface
                         if ($reflection->isSubclassOf(Model::class) && !$reflection->isAbstract()) {
+                            $table = null;
+                            $primaryKey = 'id';
+                            $foreignKey = null;
+
+                            try {
+                                $instance = new $class();
+                                $table = $instance->getTable();
+                                $primaryKey = $instance->getKeyName();
+                                $foreignKey = $instance->getForeignKey();
+                            } catch (\Throwable $e) {
+                                $table = \Illuminate\Support\Str::snake(\Illuminate\Support\Str::pluralStudly($reflection->getShortName()));
+                                $foreignKey = \Illuminate\Support\Str::snake($reflection->getShortName()) . '_id';
+                            }
+
                             $models[] = [
-                                'class' => $class,
-                                'name'  => $reflection->getShortName(),
+                                'class'       => $class,
+                                'name'        => $reflection->getShortName(),
+                                'table'       => $table,
+                                'primary_key' => $primaryKey,
+                                'foreign_key' => $foreignKey,
+                                'snake_name'  => \Illuminate\Support\Str::snake($reflection->getShortName()),
                             ];
                         }
                     } catch (\Throwable $e) {

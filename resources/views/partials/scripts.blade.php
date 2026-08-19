@@ -63,18 +63,27 @@
         autoFillFields();
       };
 
-      const autoFillFields = () => {
-        const modelName = formatClassName(form.model_class).toLowerCase();
-        const scopeName = formatClassName(form.scope_filter).toLowerCase();
+      const getModelMeta = (modelClass) => {
+        return availableModels.value.find(m => m.class === modelClass) || null;
+      };
 
-        if (scopeName) {
-          form.filter_key = `${scopeName}_id`;
+      const autoFillFields = () => {
+        const targetModel = getModelMeta(form.model_class);
+        const scopeModel = getModelMeta(form.scope_filter);
+
+        const targetSnake = targetModel?.snake_name || formatClassName(form.model_class).toLowerCase();
+        const scopeSnake = scopeModel?.snake_name || formatClassName(form.scope_filter).toLowerCase();
+
+        if (scopeModel?.foreign_key) {
+          form.filter_key = scopeModel.foreign_key;
+        } else if (scopeSnake) {
+          form.filter_key = `${scopeSnake}_id`;
         }
 
-        if (form.has_pivot && modelName && scopeName) {
-          const segments = [modelName, scopeName].sort();
+        if (form.has_pivot && targetSnake && scopeSnake) {
+          const segments = [targetSnake, scopeSnake].sort();
           form.pivot_table = `${segments[0]}_${segments[1]}`;
-          form.pivot_foreign_key = `${modelName}_id`;
+          form.pivot_foreign_key = targetModel?.foreign_key || `${targetSnake}_id`;
         } else if (!form.has_pivot) {
           form.pivot_table = '';
           form.pivot_foreign_key = '';
@@ -83,16 +92,17 @@
       };
 
       const simulatedSql = computed(() => {
-        const modelName = formatClassName(form.model_class).toLowerCase() || 'scheda';
-        const table = modelName.endsWith('a') ? modelName.slice(0, -1) + 'e' : modelName + 's';
+        const targetModel = getModelMeta(form.model_class);
+        const table = targetModel?.table || (targetModel?.snake_name ? targetModel.snake_name + 's' : (formatClassName(form.model_class).toLowerCase() + 's'));
         const filterCol = form.filter_key || 'criterio_id';
+        const targetKey = form.target_foreign_key || targetModel?.primary_key || 'id';
 
         if (!form.has_pivot) {
-          return `SELECT * FROM \`${table}\` WHERE \`${filterCol}\` IN (1, 2, 5);`;
+          return `SELECT * FROM \`${table}\` WHERE \`${table}\`.\`${filterCol}\` IN (1, 2, 5);`;
         } else {
           const pivot = form.pivot_table || `${table}_criteri`;
-          const pivotFk = form.pivot_foreign_key || `${modelName}_id`;
-          return `SELECT * FROM \`${table}\` WHERE EXISTS (\n  SELECT 1 FROM \`${pivot}\`\n  WHERE \`${pivot}\`.\`${pivotFk}\` = \`${table}\`.\`id\`\n  AND \`${pivot}\`.\`${filterCol}\` IN (1, 2, 5)\n);`;
+          const pivotFk = form.pivot_foreign_key || (targetModel?.foreign_key || `${formatClassName(form.model_class).toLowerCase()}_id`);
+          return `SELECT * FROM \`${table}\` WHERE EXISTS (\n  SELECT 1 FROM \`${pivot}\`\n  WHERE \`${pivot}\`.\`${pivotFk}\` = \`${table}\`.\`${targetKey}\`\n  AND \`${pivot}\`.\`${filterCol}\` IN (1, 2, 5)\n);`;
         }
       });
 
@@ -119,7 +129,45 @@
         }
       };
 
+      const rawAdditionalWhere = ref('');
+      const jsonError = ref(false);
+
+      const setJsonPreset = (key, val) => {
+        let current = {};
+        try {
+          if (rawAdditionalWhere.value) {
+            current = JSON.parse(rawAdditionalWhere.value);
+          }
+        } catch (e) {
+          current = {};
+        }
+        current[key] = val;
+        rawAdditionalWhere.value = JSON.stringify(current, null, 2);
+        validateJson();
+      };
+
+      const validateJson = () => {
+        if (!rawAdditionalWhere.value || !rawAdditionalWhere.value.trim()) {
+          form.additional_where = null;
+          jsonError.value = false;
+          return;
+        }
+        try {
+          const parsed = JSON.parse(rawAdditionalWhere.value);
+          form.additional_where = parsed;
+          jsonError.value = false;
+        } catch (e) {
+          jsonError.value = true;
+        }
+      };
+
       const saveDefinition = async () => {
+        validateJson();
+        if (jsonError.value) {
+          showToast('Il formato JSON dei filtri addizionali non è valido.', 'error');
+          return;
+        }
+
         isSubmitting.value = true;
         try {
           await apiFetch('/filter-definitions', {
@@ -214,6 +262,23 @@
 
       const saveUserFilter = async () => {
         if (!selectedUser.value) return;
+        if (!userForm.scope_filter || !userForm.filterable_id) {
+          showToast('Seleziona il criterio e inserisci l\'ID del valore.', 'error');
+          return;
+        }
+
+        // Verifica duplicati lato client
+        const isDuplicate = currentUserFilters.value.some(f => 
+          f.filterable_type === userForm.scope_filter &&
+          String(f.filterable_id) === String(userForm.filterable_id) &&
+          Number(f.group) === Number(userForm.group || 1)
+        );
+
+        if (isDuplicate) {
+          showToast(`Questa competenza è già stata assegnata all'operatore per il Gruppo ${userForm.group || 1}.`, 'error');
+          return;
+        }
+
         try {
           await apiFetch('/user-filters', {
             method: 'POST',
@@ -396,7 +461,11 @@
         filteredSummaryList,
         loadSummary,
         goToConfigureUser,
-        goToCloneUser
+        goToCloneUser,
+        rawAdditionalWhere,
+        jsonError,
+        validateJson,
+        setJsonPreset
       };
     }
   }).mount('#app');

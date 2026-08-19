@@ -44,6 +44,19 @@ class UserFilterController extends Controller
             'group'            => 'required|integer|min:1',
         ]);
 
+        // Verifica duplicati: evita l'assegnazione duplicata dello stesso filtro/gruppo all'utente
+        $exists = UserFilter::where($userFk, $validated[$userFk])
+            ->where('filterable_type', $validated['filterable_type'])
+            ->where('filterable_id', $validated['filterable_id'])
+            ->where('group', $validated['group'])
+            ->exists();
+
+        if ($exists) {
+            return response()->json([
+                'message' => 'Questa competenza è già stata assegnata all\'operatore per il Gruppo ' . $validated['group'] . '.',
+            ], 422);
+        }
+
         $filter = UserFilter::create($validated);
 
         return response()->json(['data' => $filter], 201);

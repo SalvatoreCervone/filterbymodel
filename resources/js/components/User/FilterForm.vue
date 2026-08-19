@@ -172,7 +172,8 @@ const handleSubmit = async () => {
     selectedId.value = '';
     emit('filter-created');
   } catch (err) {
-    alert("Errore durante il salvataggio del filtro.");
+    const errorMsg = err.response?.data?.message || err.message || "Errore durante il salvataggio del filtro.";
+    alert(errorMsg);
   }
 };
 </script>

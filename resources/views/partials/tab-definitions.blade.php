@@ -207,6 +207,69 @@
                 >
               </div>
             </div>
+
+            <!-- IDENTIFICATIVO PERSONALIZZATO DELLA SCHEDA PROTETTA (OPZIONALE) -->
+            <div v-if="form.has_pivot" class="p-3.5 bg-amber-50/60 rounded-xl border border-amber-200 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <label class="block text-xs font-extrabold text-slate-800">
+                  Colonna Personalizzata del Modello da Proteggere (Opzionale)
+                </label>
+                <span class="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">
+                  Default: 'id'
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-600 leading-relaxed">
+                Lascia vuoto se la scheda usa la chiave primaria standard (<code>id</code>). Compilalo se il collegamento punta a un'altra colonna della scheda (es. <code>codice</code>, <code>matricola</code>, <code>uuid</code>).
+              </p>
+              <input 
+                v-model="form.target_foreign_key" 
+                type="text" 
+                placeholder="Lascia vuoto per usare il normale 'id' (Default)" 
+                class="w-full border border-amber-300 rounded-xl p-2.5 text-xs font-mono font-medium bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600"
+              >
+            </div>
+
+            <!-- FILTRI E CONDIZIONI ADDIZIONALI (OPZIONALE) -->
+            <div class="pt-3 border-t border-slate-200 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <label class="block text-xs font-extrabold text-slate-800">
+                  Filtri e Condizioni Addizionali Fisse in JSON (Opzionale)
+                </label>
+                <span class="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                  Filtro Extra
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-500">
+                Vuoi applicare restrizioni permanenti oltre alla competenza? (es. filtra solo record attivi o visibili).
+              </p>
+
+              <div class="flex flex-wrap gap-2">
+                <button 
+                  type="button" 
+                  @click="setJsonPreset('stato', 'attivo')" 
+                  class="text-xs px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition border border-slate-200 cursor-pointer"
+                >
+                  + Solo Attivi: {"stato": "attivo"}
+                </button>
+                <button 
+                  type="button" 
+                  @click="setJsonPreset('visibile', 1)" 
+                  class="text-xs px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition border border-slate-200 cursor-pointer"
+                >
+                  + Solo Visibili: {"visibile": 1}
+                </button>
+              </div>
+
+              <textarea 
+                v-model="rawAdditionalWhere" 
+                rows="2" 
+                class="w-full border rounded-xl p-2.5 text-xs font-mono bg-white focus:ring-2 shadow-xs transition" 
+                :class="[jsonError ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20' : 'border-slate-300 focus:border-indigo-500 focus:ring-indigo-500/20']"
+                placeholder='es. {"stato": "attivo", "visibile": 1}' 
+                @input="validateJson"
+              ></textarea>
+              <p v-if="jsonError" class="text-[11px] text-rose-600 font-semibold">Formato JSON non valido. Correggi la sintassi prima di salvare.</p>
+            </div>
           </div>
         </div>
 
@@ -270,8 +333,11 @@
                 <span class="text-slate-400">➜</span>
                 <span class="text-indigo-600">@{{ formatClassName(d.scope_filter) }}</span>
               </div>
-              <div class="text-[11px] text-slate-500 font-mono">
-                chiave: @{{ d.filter_key }} <span v-if="d.pivot_table">| pivot: @{{ d.pivot_table }}</span>
+              <div class="text-[11px] text-slate-500 font-mono flex flex-wrap items-center gap-1.5 mt-0.5">
+                <span>chiave: @{{ d.filter_key }}</span>
+                <span v-if="d.pivot_table">• pivot: @{{ d.pivot_table }}</span>
+                <span v-if="d.target_foreign_key" class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.2 rounded font-mono">chiave scheda: @{{ d.target_foreign_key }}</span>
+                <span v-if="d.additional_where" class="bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.2 rounded font-mono">+filtri extra</span>
               </div>
             </div>
 
