@@ -66,11 +66,6 @@
         return fullClass.split('\\').pop();
       };
 
-      const setPivotMode = (isPivot) => {
-        form.has_pivot = isPivot;
-        autoFillFields();
-      };
-
       const getModelMeta = (modelClass) => {
         return availableModels.value.find(m => m.class === modelClass) || null;
       };
@@ -751,8 +746,7 @@
         resetConditionColumn,
         isTableMissing,
         missingTableName,
-        onPivotTableInput,
-        setPivotMode
+        onPivotTableInput
       };
     }
   }).mount('#app');
