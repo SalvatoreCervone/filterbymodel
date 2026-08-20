@@ -168,6 +168,23 @@
         syncConditionsToRawJson();
       };
 
+      const onConditionColumnChange = (cond) => {
+        if (cond.column === '__custom__') {
+          cond.isCustom = true;
+          cond.column = '';
+        } else {
+          syncConditionsToRawJson();
+          loadColumnValues(cond.column);
+        }
+      };
+
+      const resetConditionColumn = (cond) => {
+        cond.isCustom = false;
+        cond.column = availableColumns.value[0] || '';
+        syncConditionsToRawJson();
+        loadColumnValues(cond.column);
+      };
+
       const syncConditionsToRawJson = () => {
         const valid = conditions.value.filter(c => c.column && c.column.trim());
         if (valid.length === 0) {
@@ -692,7 +709,9 @@
         currentScopeTargetModels,
         criteriaItemsList,
         isLoadingCriteriaItems,
-        loadCriteriaItems
+        loadCriteriaItems,
+        onConditionColumnChange,
+        resetConditionColumn
       };
     }
   }).mount('#app');

@@ -326,7 +326,7 @@
                         <select 
                           v-if="availableColumns.length > 0 && !cond.isCustom"
                           v-model="cond.column" 
-                          @change="if (cond.column === '__custom__') { cond.isCustom = true; cond.column = ''; } else { syncConditionsToRawJson(); loadColumnValues(cond.column); }"
+                          @change="onConditionColumnChange(cond)"
                           class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 bg-white"
                           required
                         >
@@ -348,7 +348,7 @@
                           <button 
                             v-if="availableColumns.length > 0"
                             type="button" 
-                            @click="cond.isCustom = false; cond.column = availableColumns[0]; syncConditionsToRawJson();"
+                            @click="resetConditionColumn(cond)"
                             class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition cursor-pointer"
                             title="Torna all'elenco a tendina"
                           >
