@@ -75,22 +75,56 @@
         return availableModels.value.find(m => m.class === modelClass) || null;
       };
 
+      const isTableMissing = ref(false);
+      const missingTableName = ref('');
+      let pivotDebounceTimer = null;
+
+      const setPivotMode = (hasPivot) => {
+        form.has_pivot = hasPivot;
+        availableColumns.value = []; // Cancella subito le colonne precedenti
+        isTableMissing.value = false;
+        autoFillFields();
+      };
+
+      const onPivotTableInput = () => {
+        availableColumns.value = []; // Svuota immediatamente le colonne precedenti
+        isTableMissing.value = false;
+        if (pivotDebounceTimer) clearTimeout(pivotDebounceTimer);
+        isLoadingColumns.value = true;
+        pivotDebounceTimer = setTimeout(() => {
+          loadModelColumns();
+        }, 1000); // Attesa di 1 secondo senza digitare prima di far partire la chiamata
+      };
+
       const loadModelColumns = async () => {
+        if (pivotDebounceTimer) clearTimeout(pivotDebounceTimer);
         columnValuesMap.value = {};
+        isTableMissing.value = false;
+
         if (!form.model_class && !form.pivot_table) {
           availableColumns.value = [];
           return;
         }
+
         isLoadingColumns.value = true;
         try {
           const params = new URLSearchParams();
-          if (form.model_class) params.append('model_class', form.model_class);
-          if (form.has_pivot && form.pivot_table) params.append('table', form.pivot_table);
+          if (form.has_pivot && form.pivot_table) {
+            params.append('table', form.pivot_table.trim());
+          } else if (form.model_class) {
+            params.append('model_class', form.model_class);
+          }
 
           const res = await apiFetch(`/model-columns?${params.toString()}`);
           availableColumns.value = res.columns || [];
+          if (res.table_exists === false) {
+            isTableMissing.value = true;
+            missingTableName.value = res.table || form.pivot_table || '';
+          } else {
+            isTableMissing.value = false;
+          }
         } catch (e) {
-          console.warn('Impossibile caricare le colonne del modello:', e);
+          console.warn('Impossibile caricare le colonne:', e);
           availableColumns.value = [];
         } finally {
           isLoadingColumns.value = false;
@@ -105,8 +139,11 @@
         isLoadingColumnValues.value[col] = true;
         try {
           const params = new URLSearchParams();
-          if (form.model_class) params.append('model_class', form.model_class);
-          if (form.has_pivot && form.pivot_table) params.append('table', form.pivot_table);
+          if (form.has_pivot && form.pivot_table) {
+            params.append('table', form.pivot_table.trim());
+          } else if (form.model_class) {
+            params.append('model_class', form.model_class);
+          }
           params.append('column', col);
 
           const res = await apiFetch(`/column-values?${params.toString()}`);
@@ -711,7 +748,11 @@
         isLoadingCriteriaItems,
         loadCriteriaItems,
         onConditionColumnChange,
-        resetConditionColumn
+        resetConditionColumn,
+        isTableMissing,
+        missingTableName,
+        onPivotTableInput,
+        setPivotMode
       };
     }
   }).mount('#app');

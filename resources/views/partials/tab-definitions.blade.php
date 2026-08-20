@@ -164,14 +164,26 @@
             <div v-if="form.has_pivot" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">Nome Tabella Ponte (Pivot)</label>
-                <input 
-                  v-model="form.pivot_table" 
-                  @input="loadModelColumns"
-                  type="text" 
-                  placeholder="es. anagrafica_qualifica" 
-                  class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
-                  required
-                >
+                <div class="relative">
+                  <input 
+                    v-model="form.pivot_table" 
+                    @input="onPivotTableInput"
+                    type="text" 
+                    placeholder="es. anagrafica_qualifica" 
+                    class="w-full border rounded-xl p-2.5 text-xs font-mono font-medium focus:ring-2"
+                    :class="[isTableMissing && !isLoadingColumns ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20 text-rose-900' : 'border-slate-300 focus:ring-indigo-500/20 focus:border-indigo-600 bg-white']"
+                    required
+                  >
+                  <span v-if="isLoadingColumns" class="absolute right-3 top-2.5 flex items-center gap-1.5 text-[10px] text-indigo-600 font-semibold animate-pulse pointer-events-none">
+                    <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                    Verifica...
+                  </span>
+                </div>
+                <!-- AVVISO TABELLA INESISTENTE -->
+                <div v-if="form.has_pivot && isTableMissing && !isLoadingColumns && form.pivot_table" class="mt-1.5 p-2 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-1.5 text-rose-700 text-[11px] font-medium">
+                  <svg class="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                  <span>La tabella ponte <strong>'@{{ missingTableName || form.pivot_table }}'</strong> non esiste nel database.</span>
+                </div>
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">Chiave verso la Scheda Protetta</label>
@@ -303,6 +315,12 @@
 
               <!-- MODALITÀ VISUAL BUILDER (TABELLA A RIGHE) -->
               <div v-if="conditionMode === 'visual'" class="space-y-2.5">
+                <!-- AVVISO TABELLA PIVOT NON ESISTENTE -->
+                <div v-if="form.has_pivot && isTableMissing && !isLoadingColumns" class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-rose-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                  <span>La tabella ponte <strong>'@{{ missingTableName || form.pivot_table }}'</strong> non esiste nel database. Controlla il nome della tabella.</span>
+                </div>
+
                 <div v-if="conditions.length === 0" class="p-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/50 text-center">
                   <p class="text-xs text-slate-500">Nessuna condizione aggiuntiva impostata.</p>
                   <button 

@@ -96,33 +96,44 @@ class FilterDefinitionController extends Controller
         $modelClass = $request->query('model_class');
         $tableName = $request->query('table');
         $columns = [];
+        $tableExists = true;
+        $checkedTable = null;
 
         // Se è specificata una tabella ponte (pivot), estrai prioritariamente i suoi campi
         if (!empty($tableName)) {
+            $checkedTable = $tableName;
             try {
                 if (\Illuminate\Support\Facades\Schema::hasTable($tableName)) {
                     $columns = \Illuminate\Support\Facades\Schema::getColumnListing($tableName);
+                    $tableExists = true;
+                } else {
+                    $tableExists = false;
                 }
             } catch (\Throwable $e) {
-                // Fallback graceful
+                $tableExists = false;
             }
-        }
-
-        // Altrimenti, se non c'è una pivot, estrai le colonne del modello da proteggere
-        if (empty($columns) && !empty($modelClass) && class_exists($modelClass)) {
+        } elseif (!empty($modelClass) && class_exists($modelClass)) {
             try {
                 /** @var \Illuminate\Database\Eloquent\Model $instance */
                 $instance = new $modelClass();
                 $table = $instance->getTable();
+                $checkedTable = $table;
                 if (\Illuminate\Support\Facades\Schema::hasTable($table)) {
                     $columns = \Illuminate\Support\Facades\Schema::getColumnListing($table);
+                    $tableExists = true;
+                } else {
+                    $tableExists = false;
                 }
             } catch (\Throwable $e) {
-                // Fallback graceful
+                $tableExists = false;
             }
         }
 
-        return response()->json(['columns' => array_values(array_unique($columns))]);
+        return response()->json([
+            'columns' => array_values(array_unique($columns)),
+            'table_exists' => $tableExists,
+            'table' => $checkedTable
+        ]);
     }
 
     /**
