@@ -254,8 +254,8 @@ class UserFilterController extends Controller
      */
     public function criteriaItems(Request $request): JsonResponse
     {
-        $modelClass = $request->input('model_class') ?: $request->input('scope_filter');
-        $search = (string) $request->input('q', '');
+        $modelClass = (string) $request->input('scope_filter', '');
+        $search = (string) $request->input('search', '');
 
         if (empty($modelClass) || !class_exists($modelClass)) {
             return response()->json(['items' => []]);
@@ -273,7 +273,7 @@ class UserFilterController extends Controller
 
             $columns = \Illuminate\Support\Facades\Schema::getColumnListing($table);
             $configLimit = (int) config('filterbymodel.introspection.distinct_values_limit', 50);
-            $searchLimit = (int) config('filterbymodel.introspection.search_limit', 15);
+            $searchLimit = (int) config('filterbymodel.introspection.search_limit', 25);
             $limit = !empty($search) ? $searchLimit : $configLimit;
 
             $query = $instance->newQuery();
@@ -283,8 +283,8 @@ class UserFilterController extends Controller
                 $existingSearchFields = array_intersect($searchableFields, $columns);
 
                 $query->where(function ($qBuilder) use ($search, $pk, $columns, $existingSearchFields) {
-                    if (is_numeric($search) && in_array($pk, $columns)) {
-                        $qBuilder->orWhere($pk, $search);
+                    if (in_array($pk, $columns)) {
+                        $qBuilder->orWhere($pk, 'LIKE', "%{$search}%");
                     }
                     foreach ($existingSearchFields as $field) {
                         $qBuilder->orWhere($field, 'LIKE', "%{$search}%");

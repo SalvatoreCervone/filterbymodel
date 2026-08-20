@@ -144,14 +144,18 @@
         <div>
           <div class="flex items-center justify-between mb-1">
             <label class="block text-xs font-bold text-slate-700">Elemento / Valore Autorizzato</label>
-            <span v-if="isLoadingCriteriaItems" class="text-[10px] text-indigo-600 font-semibold animate-pulse">Caricamento opzioni...</span>
+            <div class="flex items-center gap-1.5">
+              <span v-if="isLoadingCriteriaItems" class="text-[10px] text-indigo-600 font-semibold animate-pulse">Ricerca nel database in corso...</span>
+              <span v-else class="text-[10px] text-slate-400 font-medium">(Primi 50 record - digita per cercare)</span>
+            </div>
           </div>
           <div class="relative">
             <input 
               v-model="userForm.filterable_id" 
+              @input="onCriteriaItemInput"
               list="criteria-items-datalist"
               type="text" 
-              placeholder="es. 5 oppure seleziona dal menu a tendina..."
+              placeholder="es. 1000 oppure digita il nome per cercare..."
               class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20"
               required
             >
@@ -161,8 +165,8 @@
               </option>
             </datalist>
           </div>
-          <p class="text-[10px] text-slate-400 mt-1">
-            Seleziona l'elemento reale dal menu a tendina (con nome) oppure digita direttamente l'ID numerico.
+          <p class="text-[10px] text-slate-500 mt-1 leading-relaxed">
+            💡 <strong>Nota:</strong> Vengono mostrati inizialmente i primi 50 record. Digita qualsiasi <strong>ID (es. 1050)</strong> o <strong>Nome/Descrizione</strong> per effettuare la ricerca in tempo reale sul database.
           </p>
         </div>
 

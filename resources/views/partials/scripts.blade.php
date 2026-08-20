@@ -405,14 +405,27 @@
         parent_column: ''
       });
 
-      const loadCriteriaItems = async (scopeFilter) => {
+      let criteriaSearchTimeout = null;
+      const onCriteriaItemInput = () => {
+        if (criteriaSearchTimeout) clearTimeout(criteriaSearchTimeout);
+        criteriaSearchTimeout = setTimeout(() => {
+          loadCriteriaItems(userForm.scope_filter, userForm.filterable_id);
+        }, 350);
+      };
+
+      const loadCriteriaItems = async (scopeFilter, search = '') => {
         if (!scopeFilter) {
           criteriaItemsList.value = [];
           return;
         }
         isLoadingCriteriaItems.value = true;
         try {
-          const res = await apiFetch(`/criteria-items?scope_filter=${encodeURIComponent(scopeFilter)}`);
+          const params = new URLSearchParams();
+          params.append('scope_filter', scopeFilter);
+          if (search && search.toString().trim()) {
+            params.append('search', search.toString().trim());
+          }
+          const res = await apiFetch(`/criteria-items?${params.toString()}`);
           criteriaItemsList.value = res.items || [];
         } catch (e) {
           console.warn('Impossibile caricare gli elementi del criterio:', e);
@@ -742,6 +755,7 @@
         criteriaItemsList,
         isLoadingCriteriaItems,
         loadCriteriaItems,
+        onCriteriaItemInput,
         onConditionColumnChange,
         resetConditionColumn,
         isTableMissing,
