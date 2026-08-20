@@ -249,6 +249,77 @@ class UserFilterController extends Controller
     }
 
     /**
+     * Restituisce gli elementi reali (ID e Descrizione) per un modello di competenza/criterio
+     * (es. App\Models\Qualifica o App\Models\Ufficio) per l'autocompletamento rapido.
+     */
+    public function criteriaItems(Request $request): JsonResponse
+    {
+        $modelClass = $request->input('model_class') ?: $request->input('scope_filter');
+        $search = (string) $request->input('q', '');
+
+        if (empty($modelClass) || !class_exists($modelClass)) {
+            return response()->json(['items' => []]);
+        }
+
+        try {
+            /** @var \Illuminate\Database\Eloquent\Model $instance */
+            $instance = new $modelClass();
+            $table = $instance->getTable();
+            $pk = $instance->getKeyName() ?: 'id';
+
+            if (!\Illuminate\Support\Facades\Schema::hasTable($table)) {
+                return response()->json(['items' => []]);
+            }
+
+            $columns = \Illuminate\Support\Facades\Schema::getColumnListing($table);
+            $configLimit = (int) config('filterbymodel.introspection.distinct_values_limit', 50);
+            $searchLimit = (int) config('filterbymodel.introspection.search_limit', 15);
+            $limit = !empty($search) ? $searchLimit : $configLimit;
+
+            $query = $instance->newQuery();
+
+            if (!empty($search)) {
+                $searchableFields = ['denominazione', 'nome', 'descrizione', 'titolo', 'name', 'label', 'codice', 'ragione_sociale', 'desc'];
+                $existingSearchFields = array_intersect($searchableFields, $columns);
+
+                $query->where(function ($qBuilder) use ($search, $pk, $columns, $existingSearchFields) {
+                    if (is_numeric($search) && in_array($pk, $columns)) {
+                        $qBuilder->orWhere($pk, $search);
+                    }
+                    foreach ($existingSearchFields as $field) {
+                        $qBuilder->orWhere($field, 'LIKE', "%{$search}%");
+                    }
+                });
+            }
+
+            $results = $query->limit($limit)->get();
+
+            $items = $results->map(function ($row) use ($columns, $pk) {
+                $formatted = $this->formatUserRow($row, $columns, $pk, null);
+                $id = $formatted['id'];
+                $label = $formatted['label'];
+                $sublabel = ($formatted['sublabel'] !== "ID: {$id}") ? $formatted['sublabel'] : '';
+
+                $displayText = "ID: {$id} — {$label}";
+                if ($sublabel) {
+                    $displayText .= " ({$sublabel})";
+                }
+
+                return [
+                    'id'       => (string) $id,
+                    'label'    => $label,
+                    'sublabel' => $sublabel,
+                    'display'  => $displayText,
+                ];
+            })->values();
+
+            return response()->json(['items' => $items]);
+        } catch (\Throwable $e) {
+            return response()->json(['items' => []]);
+        }
+    }
+
+    /**
      * Resoconto e riepilogo di tutti gli utenti con lo stato dei loro permessi/filtri bindati.
      * Include conteggi totali, filtri per stato (con permessi / senza permessi) e ricerca.
      */

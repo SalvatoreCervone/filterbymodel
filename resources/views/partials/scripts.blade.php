@@ -42,6 +42,8 @@
       const definitions = ref([]);
       const availableColumns = ref([]);
       const isLoadingColumns = ref(false);
+      const columnValuesMap = ref({});
+      const isLoadingColumnValues = ref({});
       const conditionMode = ref('visual');
       const conditions = ref([]);
       const rawAdditionalWhere = ref('');
@@ -74,6 +76,7 @@
       };
 
       const loadModelColumns = async () => {
+        columnValuesMap.value = {};
         if (!form.model_class && !form.pivot_table) {
           availableColumns.value = [];
           return;
@@ -91,6 +94,28 @@
           availableColumns.value = [];
         } finally {
           isLoadingColumns.value = false;
+        }
+      };
+
+      const loadColumnValues = async (column) => {
+        if (!column || !column.trim()) return;
+        const col = column.trim();
+        if (columnValuesMap.value[col] !== undefined) return;
+
+        isLoadingColumnValues.value[col] = true;
+        try {
+          const params = new URLSearchParams();
+          if (form.model_class) params.append('model_class', form.model_class);
+          if (form.has_pivot && form.pivot_table) params.append('table', form.pivot_table);
+          params.append('column', col);
+
+          const res = await apiFetch(`/column-values?${params.toString()}`);
+          columnValuesMap.value[col] = res.values || [];
+        } catch (e) {
+          console.warn(`Impossibile campionare i valori per la colonna ${col}:`, e);
+          columnValuesMap.value[col] = [];
+        } finally {
+          isLoadingColumnValues.value[col] = false;
         }
       };
 
@@ -318,6 +343,8 @@
       const isUserDropdownOpen = ref(false);
       const selectedUser = ref(null);
       const currentUserFilters = ref([]);
+      const criteriaItemsList = ref([]);
+      const isLoadingCriteriaItems = ref(false);
       let searchTimeout = null;
 
       const userForm = reactive({
@@ -328,6 +355,23 @@
         include_children: false,
         parent_column: ''
       });
+
+      const loadCriteriaItems = async (scopeFilter) => {
+        if (!scopeFilter) {
+          criteriaItemsList.value = [];
+          return;
+        }
+        isLoadingCriteriaItems.value = true;
+        try {
+          const res = await apiFetch(`/criteria-items?scope_filter=${encodeURIComponent(scopeFilter)}`);
+          criteriaItemsList.value = res.items || [];
+        } catch (e) {
+          console.warn('Impossibile caricare gli elementi del criterio:', e);
+          criteriaItemsList.value = [];
+        } finally {
+          isLoadingCriteriaItems.value = false;
+        }
+      };
 
       const currentScopeTargetModels = computed(() => {
         if (!userForm.scope_filter) return [];
@@ -411,11 +455,16 @@
 
       const onScopeFilterChange = () => {
         userForm.target_model = '';
+        userForm.filterable_id = '';
         const selectedCrit = availableCriteria.value.find(c => c.scope_filter === userForm.scope_filter);
         if (selectedCrit && selectedCrit.parent_column) {
           userForm.parent_column = selectedCrit.parent_column;
           userForm.include_children = true;
+        } else {
+          userForm.parent_column = '';
+          userForm.include_children = false;
         }
+        loadCriteriaItems(userForm.scope_filter);
       };
 
       const saveUserFilter = async () => {
@@ -625,6 +674,9 @@
         goToCloneUser,
         availableColumns,
         isLoadingColumns,
+        columnValuesMap,
+        isLoadingColumnValues,
+        loadColumnValues,
         conditionMode,
         conditions,
         loadModelColumns,
@@ -637,7 +689,10 @@
         jsonError,
         availableCriteria,
         getTargetModelsForScope,
-        currentScopeTargetModels
+        currentScopeTargetModels,
+        criteriaItemsList,
+        isLoadingCriteriaItems,
+        loadCriteriaItems
       };
     }
   }).mount('#app');

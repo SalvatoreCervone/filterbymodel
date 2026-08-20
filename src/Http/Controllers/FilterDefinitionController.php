@@ -120,4 +120,83 @@ class FilterDefinitionController extends Controller
 
         return response()->json(['columns' => array_values($columns)]);
     }
+
+    /**
+     * Restituisce i valori univoci campionati (o filtrati con ricerca live) per una specifica colonna.
+     */
+    public function columnValues(Request $request): JsonResponse
+    {
+        $modelClass = $request->query('model_class');
+        $tableName = $request->query('table');
+        $column = $request->query('column');
+        $search = $request->query('search');
+
+        if (empty($column)) {
+            return response()->json(['values' => [], 'has_more' => false]);
+        }
+
+        // Sanificazione del nome colonna
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', (string) $column)) {
+            return response()->json(['values' => [], 'has_more' => false], 400);
+        }
+
+        $table = null;
+        if (!empty($modelClass) && class_exists($modelClass)) {
+            try {
+                /** @var \Illuminate\Database\Eloquent\Model $instance */
+                $instance = new $modelClass();
+                $table = $instance->getTable();
+            } catch (\Throwable $e) {
+                return response()->json(['values' => [], 'has_more' => false]);
+            }
+        } elseif (!empty($tableName)) {
+            $table = $tableName;
+        }
+
+        if (empty($table) || !\Illuminate\Support\Facades\Schema::hasTable($table) || !\Illuminate\Support\Facades\Schema::hasColumn($table, $column)) {
+            return response()->json(['values' => [], 'has_more' => false]);
+        }
+
+        // Esclusione campi sensibili
+        $lowerCol = strtolower($column);
+        if (str_contains($lowerCol, 'password') || str_contains($lowerCol, 'token') || str_contains($lowerCol, 'secret') || str_contains($lowerCol, 'hash')) {
+            return response()->json(['values' => [], 'has_more' => false]);
+        }
+
+        $configLimit = (int) config('filterbymodel.introspection.distinct_values_limit', 50);
+        $searchLimit = (int) config('filterbymodel.introspection.search_limit', 15);
+        $limit = !empty($search) ? $searchLimit : $configLimit;
+
+        try {
+            $query = \Illuminate\Support\Facades\DB::table($table)
+                ->select($column)
+                ->whereNotNull($column);
+
+            if (!empty($search)) {
+                $query->where($column, 'LIKE', '%' . $search . '%');
+            }
+
+            // Chiede limit + 1 per rilevare se ci sono ulteriori valori (alta cardinalità)
+            $rawValues = $query->distinct()
+                ->limit($limit + 1)
+                ->pluck($column)
+                ->toArray();
+
+            $hasMore = count($rawValues) > $limit;
+            $values = array_slice($rawValues, 0, $limit);
+
+            $formatted = array_map(function ($v) {
+                if (is_bool($v)) return $v ? '1' : '0';
+                return (string) $v;
+            }, $values);
+
+            return response()->json([
+                'values'   => array_values(array_unique($formatted)),
+                'has_more' => $hasMore,
+                'limit'    => $limit,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['values' => [], 'has_more' => false]);
+        }
+    }
 }

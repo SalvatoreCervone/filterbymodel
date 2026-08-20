@@ -355,18 +355,39 @@
                       </select>
                     </div>
 
-                    <!-- VALORE -->
+                    <!-- VALORE (COMBOBOX CON SUGGERIMENTI DINAMICI E VALORI DISTINCT CAMPIONATI) -->
                     <div class="flex-1 min-w-[140px]">
-                      <label class="block sm:hidden text-[10px] font-bold text-slate-400 mb-0.5">Valore</label>
-                      <input 
-                        v-if="!['IS NULL', 'IS NOT NULL'].includes(cond.operator)"
-                        v-model="cond.value" 
-                        type="text" 
-                        :placeholder="cond.operator === 'IN' ? 'es. VIP, GOLD, SILVER' : (cond.operator === 'BETWEEN' ? 'es. 100, 500' : 'es. attivo o @auth_id')"
-                        class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
-                      >
-                      <div v-else class="text-xs text-slate-400 italic px-2 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
-                        (Nessun valore richiesto)
+                      <div class="flex items-center justify-between sm:hidden mb-0.5">
+                        <label class="text-[10px] font-bold text-slate-400">Valore</label>
+                        <span v-if="isLoadingColumnValues[cond.column]" class="text-[9px] text-indigo-600 animate-pulse font-semibold">Caricamento valori...</span>
+                      </div>
+                      <div class="relative">
+                        <input 
+                          v-if="!['IS NULL', 'IS NOT NULL'].includes(cond.operator)"
+                          v-model="cond.value" 
+                          :list="'column-values-list-' + idx"
+                          type="text" 
+                          @focus="loadColumnValues(cond.column)"
+                          @change="syncConditionsToRawJson"
+                          :placeholder="cond.operator === 'IN' ? 'es. VIP, GOLD, SILVER' : (cond.operator === 'BETWEEN' ? 'es. 100, 500' : 'es. attivo o @auth_id')"
+                          class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
+                        >
+                        <div v-else class="text-xs text-slate-400 italic px-2 py-1.5 bg-slate-50 rounded-lg border border-slate-200">
+                          (Nessun valore richiesto)
+                        </div>
+
+                        <!-- DATALIST VALORI SUGGERITI & DISTINCT DA DB -->
+                        <datalist :id="'column-values-list-' + idx">
+                          <!-- Segnaposto speciali sempre disponibili -->
+                          <option value="@auth_id">@auth_id (ID Operatore Loggato)</option>
+                          <option value="@current_year">@current_year (Anno Solare Corrente)</option>
+                          <option value="@today">@today (Data Odierna)</option>
+                          <option value="@null">@null (Valore Nullo)</option>
+                          <!-- Valori univoci campionati dal database -->
+                          <option v-for="val in (columnValuesMap[cond.column] || [])" :key="val" :value="val">
+                            @{{ val }}
+                          </option>
+                        </datalist>
                       </div>
                     </div>
 

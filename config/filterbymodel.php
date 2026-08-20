@@ -149,4 +149,21 @@ return [
             'middleware' => ['web'], // In produzione puoi aggiungere 'auth' o middleware di ruolo: ['web', 'auth']
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Introspezione e Suggerimento Valori (Visual Rule Builder)
+    |--------------------------------------------------------------------------
+    |
+    | Configurazione per l'estrazione e i suggerimenti dei valori delle colonne:
+    | - distinct_values_limit: soglia massima di valori univoci estratti per colonna (default: 50)
+    | - search_limit: limite di risultati durante la ricerca live/autocomplete (default: 15)
+    | - cache_ttl_seconds: durata della cache per i valori (in secondi, default: 300)
+    |
+    */
+    'introspection' => [
+        'distinct_values_limit' => env('FILTERBYMODEL_DISTINCT_LIMIT', 50),
+        'search_limit'          => 15,
+        'cache_ttl_seconds'     => 300,
+    ],
 ];

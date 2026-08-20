@@ -142,14 +142,28 @@
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">ID Valore Autorizzato</label>
-          <input 
-            v-model="userForm.filterable_id" 
-            type="text" 
-            placeholder="es. 5 (ID ufficio autorizzato)"
-            class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20"
-            required
-          >
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-xs font-bold text-slate-700">Elemento / Valore Autorizzato</label>
+            <span v-if="isLoadingCriteriaItems" class="text-[10px] text-indigo-600 font-semibold animate-pulse">Caricamento opzioni...</span>
+          </div>
+          <div class="relative">
+            <input 
+              v-model="userForm.filterable_id" 
+              list="criteria-items-datalist"
+              type="text" 
+              placeholder="es. 5 oppure seleziona dal menu a tendina..."
+              class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20"
+              required
+            >
+            <datalist id="criteria-items-datalist">
+              <option v-for="item in criteriaItemsList" :key="item.id" :value="item.id">
+                @{{ item.display || (item.label ? 'ID ' + item.id + ' — ' + item.label : item.id) }}
+              </option>
+            </datalist>
+          </div>
+          <p class="text-[10px] text-slate-400 mt-1">
+            Seleziona l'elemento reale dal menu a tendina (con nome) oppure digita direttamente l'ID numerico.
+          </p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -5,13 +5,17 @@ Package Laravel per la **sicurezza perimetrale** e il **filtraggio dati a livell
 ## Funzionalità
 
 - **Protezione Automatica Zero-Code**: Protegge automaticamente tutti i modelli con regole definite senza richiedere di modificare il codice sorgente o inserire Trait.
-- **Scoping Granulare per Modello Target (Novità)**: Possibilità di applicare una competenza utente a livello globale (su tutti i modelli che usano quel criterio) oppure circoscriverla selettivamente solo a specifici modelli target (es. solo per `Anagrafica` o `Contratto`).
+- **Scoping Granulare per Modello Target**: Possibilità di applicare una competenza utente a livello globale (su tutti i modelli che usano quel criterio) oppure circoscriverla selettivamente solo a specifici modelli target (es. solo per `Anagrafica` o `Contratto`).
+- **Visual Rule Builder & Introspezione Colonne**: Interfaccia a righe intuitiva con autocompletamento in tempo reale delle colonne dello Schema Database (`/api/model-columns`).
+- **Suggerimento Valori (`DISTINCT`) & Segnaposto Dinamici**: Campionamento protetto dei valori reali a database (`/api/column-values`) con supporto per segnaposto dinamici (`@auth_id`, `@current_year`, `@today`, `@null`).
+- **Assegnazione Competenze con Nomi Descrittivi**: Autocomplete e dropdown con risoluzione automatica delle etichette dei criteri (`/api/criteria-items`, es. *ID: 5 — Ufficio Risorse Umane*) invece di dover ricordare a memoria gli ID numerici.
 - **Filtraggio automatico in lettura**: Global Scope Eloquent che limita i risultati delle query in base ai permessi dell'utente autenticato.
 - **Validazione in scrittura/cancellazione**: Intercettazione automatica degli eventi `saving` e `deleting` per verificare il perimetro di sicurezza.
 - **Relazioni Dirette (1:N) e Pivot (N:M)**: Supporto completo per entrambi i tipi di collegamento tra modelli, chiavi esterne personalizzate (`target_foreign_key`) e tabelle ponte.
 - **Gerarchia ad albero**: Opzione `include_children` per includere automaticamente i discendenti nella catena gerarchica (`padre_id`, `parent_id`, ecc.).
 - **Gruppi logici AND/OR**: I filtri nello stesso gruppo operano in AND, gruppi diversi in OR.
-- **Condizioni aggiuntive JSON**: Filtri extra configurabili in formato JSON (`additional_where`) con supporto per valori `null`, stringhe e numeri.
+- **Condizioni aggiuntive avanzate**: Supporto per operatori estesi (`=`, `!=`, `>`, `<`, `>=`, `<=`, `LIKE`, `NOT LIKE`, `IN`, `NOT IN`, `IS NULL`, `IS NOT NULL`, `BETWEEN`) e retrocompatibilità 100% con oggetti JSON legacy.
+- **Zero Dipendenze Esterne (GDPR Ready / Offline-First)**: Include bundle CSS locale e runtime Vue 3 isolato senza ricorrere a CDN esterne.
 - **Maschere Vue 3 con Live SQL Preview e Resoconto Globale**: Componenti frontend moderni per la gestione admin e utente con simulazione live della query SQL, autocomplete DB e clonazione rapida dei permessi.
 
 ## Installazione
@@ -120,6 +124,13 @@ return [
         'parent_column' => 'padre_id',
     ],
 
+    // Introspezione e Suggerimento Valori (Visual Rule Builder)
+    'introspection' => [
+        'distinct_values_limit' => env('FILTERBYMODEL_DISTINCT_LIMIT', 50),
+        'search_limit'          => 15,
+        'cache_ttl_seconds'     => 300,
+    ],
+
     // Configurazione rotte del package (API REST e Dashboard Web)
     'routes' => [
         'api' => [
@@ -147,8 +158,8 @@ http://tuo-dominio.test/filterbymodel
 ```
 
 La dashboard include 3 sezioni integrate:
-1. **Regole Modelli**: Configurazione visuale delle relazioni con simulazione live delle query SQL generate.
-2. **Competenze Utenti**: Autocomplete per selezionare gli operatori, assegnare perimetri e gestire le gerarchie ad albero.
+1. **Regole Modelli**: Configurazione visuale delle relazioni, Visual Rule Builder per condizioni addizionali e simulazione live delle query SQL generate.
+2. **Competenze Utenti**: Autocomplete per selezionare gli operatori, combobox per assegnare criteri per nome/ID e gestione gerarchie ad albero.
 3. **Resoconto Globale**: Statistiche aggregate, panoramica dello stato di tutti gli utenti e clonazione massiva rapida dei permessi.
 
 > [!TIP]
@@ -218,7 +229,10 @@ Le seguenti rotte REST sono esposte automaticamente se `routes.api.enabled` è `
 | `POST`   | `/api/filter-definitions`        | Crea o aggiorna una regola                                 |
 | `DELETE` | `/api/filter-definitions/{id}`   | Elimina una regola                                         |
 | `GET`    | `/api/available-models`          | Modelli configurati disponibili                            |
+| `GET`    | `/api/model-columns`             | Introspezione colonne schema DB per un modello o pivot     |
+| `GET`    | `/api/column-values`             | Valori univoci campionati (DISTINCT) o ricerca live        |
 | `GET`    | `/api/search-users`              | Ricerca operatori/utenti per autocomplete                  |
+| `GET`    | `/api/criteria-items`            | Elementi e descrizioni reali per modelli di competenza     |
 | `GET`    | `/api/user-filters-summary`      | Resoconto globale di tutti gli utenti e permessi bindati   |
 | `GET`    | `/api/user-filters?user_id={id}` | Filtri attivi per un determinato utente                    |
 | `POST`   | `/api/user-filters`              | Assegna un filtro a un utente                              |
@@ -385,9 +399,36 @@ Se invece desideri che un operatore veda una determinata sede o filiale solo su 
 - **Tutti i modelli** (default, `target_model = null`): la competenza si applica a tutte le entità collegate a quel criterio.
 - **Modelli specifici** (`target_model = App\Models\Fattura`): la competenza si applicherà unicamente a quel modello, lasciando inalterati gli altri.
 
-### Condizioni Aggiuntive JSON (`additional_where`)
+### Visual Rule Builder & Condizioni Aggiuntive (`additional_where`)
 
-Nelle regole di visibilità puoi definire vincoli extra memorizzati come oggetto chiave-valore JSON:
+Nelle regole di visibilità puoi definire vincoli extra a livello di colonna con operatori logici avanzati e segnaposto dinamici:
+
+#### 1. Formato Strutturato (Visual Rule Builder)
+```json
+[
+  { "column": "stato", "operator": "=", "value": "attivo" },
+  { "column": "anno", "operator": ">=", "value": "@current_year" },
+  { "column": "owner_id", "operator": "=", "value": "@auth_id" },
+  { "column": "deleted_at", "operator": "IS NULL", "value": "" },
+  { "column": "categoria", "operator": "IN", "value": "VIP, GOLD, SILVER" }
+]
+```
+
+#### 2. Operatori Supportati
+- **Confronto**: `=`, `!=`, `>`, `>=`, `<`, `<=`
+- **Testo**: `LIKE`, `NOT LIKE` (supporta wildcard `%` o fa matching parziale)
+- **Liste**: `IN`, `NOT IN` (valori separati da virgola o array)
+- **Nullabilità**: `IS NULL`, `IS NOT NULL`
+- **Intervalli**: `BETWEEN` (es. `100, 500`)
+
+#### 3. Segnaposto Dinamici (Risolti a Runtime)
+- `@auth_id` oppure `@user.id`: ID dell'utente attualmente autenticato.
+- `@current_year`: Anno solare corrente (es. `2026`).
+- `@today`: Data odierna in formato `YYYY-MM-DD`.
+- `@null`: Valore NULL esplicito.
+
+#### 4. Retrocompatibilità con JSON Legacy
+Il package supporta al 100% anche il formato mappa chiave-valore legacy:
 ```json
 {
   "deleted_at": null,
@@ -395,7 +436,6 @@ Nelle regole di visibilità puoi definire vincoli extra memorizzati come oggetto
   "tipo_record": "UFFICIALE"
 }
 ```
-Il generatore SQL e il verificatore di sicurezza a runtime applicano automaticamente queste condizioni sia nelle query Eloquent (`whereNull` per valori nulli, `where` standard per scalari) sia nella validazione durante il salvataggio o la cancellazione dei record.
 
 ## Licenza
 

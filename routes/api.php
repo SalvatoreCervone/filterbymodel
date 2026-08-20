@@ -21,12 +21,14 @@ Route::get('/filter-definitions', [FilterDefinitionController::class, 'index']);
 Route::post('/filter-definitions', [FilterDefinitionController::class, 'store']);
 Route::delete('/filter-definitions/{id}', [FilterDefinitionController::class, 'destroy']);
 
-// --- Modelli Disponibili & Introspezione Colonne ---
+// --- Modelli Disponibili & Introspezione Colonne & Valori ---
 Route::get('/available-models', [FilterDefinitionController::class, 'availableModels']);
 Route::get('/model-columns', [FilterDefinitionController::class, 'modelColumns']);
+Route::get('/column-values', [FilterDefinitionController::class, 'columnValues']);
 
-// --- Filtri Utente ---
+// --- Filtri Utente & Competenze ---
 Route::get('/search-users', [UserFilterController::class, 'searchUsers']);
+Route::get('/criteria-items', [UserFilterController::class, 'criteriaItems']);
 Route::get('/user-filters-summary', [UserFilterController::class, 'summary']);
 Route::get('/user-filters', [UserFilterController::class, 'index']);
 Route::post('/user-filters', [UserFilterController::class, 'store']);
