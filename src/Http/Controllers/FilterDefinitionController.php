@@ -97,23 +97,25 @@ class FilterDefinitionController extends Controller
         $tableName = $request->query('table');
         $columns = [];
 
-        if (!empty($modelClass) && class_exists($modelClass)) {
+        // Se è specificata una tabella ponte (pivot), estrai prioritariamente i suoi campi
+        if (!empty($tableName)) {
             try {
-                /** @var \Illuminate\Database\Eloquent\Model $instance */
-                $instance = new $modelClass();
-                $table = $instance->getTable();
-                if (\Illuminate\Support\Facades\Schema::hasTable($table)) {
-                    $columns = array_merge($columns, \Illuminate\Support\Facades\Schema::getColumnListing($table));
+                if (\Illuminate\Support\Facades\Schema::hasTable($tableName)) {
+                    $columns = \Illuminate\Support\Facades\Schema::getColumnListing($tableName);
                 }
             } catch (\Throwable $e) {
                 // Fallback graceful
             }
         }
 
-        if (!empty($tableName)) {
+        // Altrimenti, se non c'è una pivot, estrai le colonne del modello da proteggere
+        if (empty($columns) && !empty($modelClass) && class_exists($modelClass)) {
             try {
-                if (\Illuminate\Support\Facades\Schema::hasTable($tableName)) {
-                    $columns = array_merge($columns, \Illuminate\Support\Facades\Schema::getColumnListing($tableName));
+                /** @var \Illuminate\Database\Eloquent\Model $instance */
+                $instance = new $modelClass();
+                $table = $instance->getTable();
+                if (\Illuminate\Support\Facades\Schema::hasTable($table)) {
+                    $columns = \Illuminate\Support\Facades\Schema::getColumnListing($table);
                 }
             } catch (\Throwable $e) {
                 // Fallback graceful
@@ -143,7 +145,9 @@ class FilterDefinitionController extends Controller
         }
 
         $table = null;
-        if (!empty($modelClass) && class_exists($modelClass)) {
+        if (!empty($tableName)) {
+            $table = $tableName;
+        } elseif (!empty($modelClass) && class_exists($modelClass)) {
             try {
                 /** @var \Illuminate\Database\Eloquent\Model $instance */
                 $instance = new $modelClass();
@@ -151,8 +155,6 @@ class FilterDefinitionController extends Controller
             } catch (\Throwable $e) {
                 return response()->json(['values' => [], 'has_more' => false]);
             }
-        } elseif (!empty($tableName)) {
-            $table = $tableName;
         }
 
         if (empty($table) || !\Illuminate\Support\Facades\Schema::hasTable($table) || !\Illuminate\Support\Facades\Schema::hasColumn($table, $column)) {

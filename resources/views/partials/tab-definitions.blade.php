@@ -166,6 +166,7 @@
                 <label class="block text-xs font-bold text-slate-700 mb-1">Nome Tabella Ponte (Pivot)</label>
                 <input 
                   v-model="form.pivot_table" 
+                  @input="loadModelColumns"
                   type="text" 
                   placeholder="es. anagrafica_qualifica" 
                   class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"

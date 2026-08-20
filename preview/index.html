@@ -240,6 +240,7 @@
                     <label class="block text-xs font-bold text-slate-700 mb-1">Nome Tabella Ponte (Pivot)</label>
                     <input 
                       v-model="form.pivot_table" 
+                      @input="loadModelColumns"
                       type="text" 
                       placeholder="es. anagrafica_qualifica" 
                       class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
@@ -1184,7 +1185,9 @@
           'App\\Models\\Qualifica': ['id', 'codice', 'descrizione', 'livello', 'stato', 'created_at'],
           'App\\Models\\Ufficio': ['id', 'codice', 'denominazione', 'padre_id', 'attivo', 'created_at'],
           'App\\Models\\Sede': ['id', 'citta', 'indirizzo', 'cap', 'is_principale', 'created_at'],
-          'App\\Models\\Documento': ['id', 'titolo', 'tipo', 'riservato', 'anno', 'created_at', 'deleted_at']
+          'App\\Models\\Documento': ['id', 'titolo', 'tipo', 'riservato', 'anno', 'created_at', 'deleted_at'],
+          'anagraficaqualificas': ['id', 'anagrafica_id', 'qualifica_id', 'livello', 'stato', 'data_inizio', 'is_principale'],
+          'anagrafica_ufficio': ['id', 'anagrafica_id', 'ufficio_id', 'data_assegnazione', 'attivo']
         };
 
         const mockDistinctColumnValues = {
@@ -1214,7 +1217,7 @@
           }
         ]);
 
-        const availableColumns = ref(['id', 'cognome', 'nome', 'stato', 'anno', 'importo', 'owner_id', 'created_at', 'deleted_at']);
+        const availableColumns = ref(['id', 'anagrafica_id', 'qualifica_id', 'livello', 'stato', 'data_inizio', 'is_principale']);
         const isLoadingColumns = ref(false);
         const columnValuesMap = ref({});
         const isLoadingColumnValues = ref({});
@@ -1248,7 +1251,9 @@
           columnValuesMap.value = {};
           isLoadingColumns.value = true;
           setTimeout(() => {
-            if (form.model_class && mockModelColumns[form.model_class]) {
+            if (form.has_pivot && form.pivot_table && mockModelColumns[form.pivot_table]) {
+              availableColumns.value = mockModelColumns[form.pivot_table];
+            } else if (form.model_class && mockModelColumns[form.model_class]) {
               availableColumns.value = mockModelColumns[form.model_class];
             } else {
               availableColumns.value = ['id', 'stato', 'anno', 'importo', 'owner_id', 'created_at'];
