@@ -319,17 +319,43 @@
                     :key="idx"
                     class="p-2.5 bg-white rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
                   >
-                    <!-- COLONNA (COMBOBOX CON COLONNE RILEVATE) -->
+                    <!-- COLONNA (SELECT A TENDINA CON TUTTE LE COLONNE DELLO SCHEMA DB) -->
                     <div class="flex-1 min-w-[140px]">
                       <label class="block sm:hidden text-[10px] font-bold text-slate-400 mb-0.5">Colonna</label>
-                      <input 
-                        v-model="cond.column" 
-                        list="model-columns-list" 
-                        type="text" 
-                        placeholder="Nome colonna (es. stato)"
-                        class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
-                        required
-                      >
+                      <div class="relative">
+                        <select 
+                          v-if="availableColumns.length > 0 && !cond.isCustom"
+                          v-model="cond.column" 
+                          @change="if (cond.column === '__custom__') { cond.isCustom = true; cond.column = ''; } else { syncConditionsToRawJson(); loadColumnValues(cond.column); }"
+                          class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 bg-white"
+                          required
+                        >
+                          <option value="" disabled>-- Seleziona Colonna --</option>
+                          <option v-for="col in availableColumns" :key="col" :value="col">
+                            @{{ col }}
+                          </option>
+                          <option value="__custom__">✏️ Digita colonna personalizzata...</option>
+                        </select>
+                        <div v-else class="flex items-center gap-1">
+                          <input 
+                            v-model="cond.column" 
+                            type="text" 
+                            placeholder="Nome colonna (es. stato)"
+                            @input="syncConditionsToRawJson"
+                            class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 bg-white"
+                            required
+                          >
+                          <button 
+                            v-if="availableColumns.length > 0"
+                            type="button" 
+                            @click="cond.isCustom = false; cond.column = availableColumns[0]; syncConditionsToRawJson();"
+                            class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs font-bold transition cursor-pointer"
+                            title="Torna all'elenco a tendina"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     <!-- OPERATORE -->
@@ -401,12 +427,6 @@
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
                   </div>
-                </div>
-
-                <!-- DATALIST PER AUTOCOMPLETE COLONNE -->
-                <datalist id="model-columns-list">
-                  <option v-for="col in availableColumns" :key="col" :value="col"></option>
-                </datalist>
               </div>
 
               <!-- MODALITÀ AVANZATA (RAW JSON) -->

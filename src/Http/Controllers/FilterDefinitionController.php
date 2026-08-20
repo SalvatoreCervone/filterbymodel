@@ -103,22 +103,24 @@ class FilterDefinitionController extends Controller
                 $instance = new $modelClass();
                 $table = $instance->getTable();
                 if (\Illuminate\Support\Facades\Schema::hasTable($table)) {
-                    $columns = \Illuminate\Support\Facades\Schema::getColumnListing($table);
-                }
-            } catch (\Throwable $e) {
-                // Fallback graceful
-            }
-        } elseif (!empty($tableName)) {
-            try {
-                if (\Illuminate\Support\Facades\Schema::hasTable($tableName)) {
-                    $columns = \Illuminate\Support\Facades\Schema::getColumnListing($tableName);
+                    $columns = array_merge($columns, \Illuminate\Support\Facades\Schema::getColumnListing($table));
                 }
             } catch (\Throwable $e) {
                 // Fallback graceful
             }
         }
 
-        return response()->json(['columns' => array_values($columns)]);
+        if (!empty($tableName)) {
+            try {
+                if (\Illuminate\Support\Facades\Schema::hasTable($tableName)) {
+                    $columns = array_merge($columns, \Illuminate\Support\Facades\Schema::getColumnListing($tableName));
+                }
+            } catch (\Throwable $e) {
+                // Fallback graceful
+            }
+        }
+
+        return response()->json(['columns' => array_values(array_unique($columns))]);
     }
 
     /**
