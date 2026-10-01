@@ -11,9 +11,31 @@ use ReflectionClass;
 use RuntimeException;
 use SalvatoreCervone\FilterByModel\Models\FilterDefinition;
 use SalvatoreCervone\FilterByModel\Models\UserFilter;
+use SalvatoreCervone\FilterByModel\Models\UserBypass;
 
 class ModelFilterService
 {
+    /**
+     * Cache in memoria per i bypass utente (evita query ripetute nella stessa richiesta HTTP).
+     *
+     * @var array<string, bool>
+     */
+    protected array $bypassCache = [];
+
+    /**
+     * Cache in memoria per i filtri risolti (evita query ripetute nella stessa richiesta HTTP).
+     *
+     * @var array<string, array>
+     */
+    protected array $resolvedFiltersCache = [];
+
+    /**
+     * Cache in memoria per verificare se un modello ha definizioni (evita query ripetute).
+     *
+     * @var array<string, bool>
+     */
+    protected array $hasDefinitionsCache = [];
+
     /**
      * Risolve l'ID dell'utente da autorizzare.
      */
@@ -32,6 +54,86 @@ class ModelFilterService
     }
 
     /**
+     * Verifica se un utente ha il bypass globale attivo (scavalca tutti i filtri).
+     *
+     * Ordine di priorità:
+     * 1. Super-utenti hardcodati in configurazione (bootstrap / fallback)
+     * 2. Bypass salvato a database tramite la Dashboard (tabella filter_user_bypasses)
+     *
+     * Il risultato viene memorizzato in RAM per evitare query ripetute nella stessa richiesta.
+     *
+     * @param int|null    $userId   ID utente (default: utente autenticato)
+     * @param string|null $userType Classe del modello utente (default: modello autenticato o config)
+     * @return bool
+     */
+    public function isUserBypassed(?int $userId = null, ?string $userType = null): bool
+    {
+        $userId = $this->resolveUserId($userId);
+
+        if ($userId === null) {
+            return false;
+        }
+
+        // Risolvi il tipo utente
+        if ($userType === null) {
+            $user = Auth::user();
+            $userType = $user ? get_class($user) : config('filterbymodel.user.model', 'App\Models\User');
+        }
+
+        $cacheKey = "{$userType}:{$userId}";
+
+        // Se già calcolato in questa richiesta HTTP, restituisci subito
+        if (isset($this->bypassCache[$cacheKey])) {
+            return $this->bypassCache[$cacheKey];
+        }
+
+        // 1. Controllo super-utenti hardcodati in configurazione
+        $superUserIds = (array) config('filterbymodel.users.super_user_ids', []);
+        if (in_array($userId, $superUserIds, false)) {
+            return $this->bypassCache[$cacheKey] = true;
+        }
+
+        // 2. Controllo bypass a database
+        $bypassTable = config('filterbymodel.tables.filter_user_bypasses', 'filter_user_bypasses');
+        try {
+            $isBypassed = DB::table($bypassTable)
+                ->where('user_id', $userId)
+                ->where('user_type', $userType)
+                ->exists();
+        } catch (\Throwable $e) {
+            // Se la tabella non esiste ancora (pre-migration), non bloccare l'applicazione
+            $isBypassed = false;
+        }
+
+        return $this->bypassCache[$cacheKey] = $isBypassed;
+    }
+
+    /**
+     * Verifica se un modello ha definizioni di filtro configurate a sistema.
+     *
+     * @param string $modelClass FQCN del modello Eloquent
+     * @return bool
+     */
+    public function hasDefinitionsForModel(string $modelClass): bool
+    {
+        if (isset($this->hasDefinitionsCache[$modelClass])) {
+            return $this->hasDefinitionsCache[$modelClass];
+        }
+
+        $definitionsTable = config('filterbymodel.tables.filter_definitions', 'filter_definitions');
+
+        try {
+            $exists = DB::table($definitionsTable)
+                ->where('model_class', $modelClass)
+                ->exists();
+        } catch (\Throwable $e) {
+            $exists = false;
+        }
+
+        return $this->hasDefinitionsCache[$modelClass] = $exists;
+    }
+
+    /**
      * Risolve e prepara la struttura dei filtri autorizzati per il modello dato.
      *
      * @param string   $modelClass  FQCN del modello Eloquent protetto
@@ -46,6 +148,12 @@ class ModelFilterService
             return [];
         }
 
+        // Cache per-request: evita di rieseguire le stesse query per lo stesso modello e utente
+        $cacheKey = "{$modelClass}:{$userId}";
+        if (isset($this->resolvedFiltersCache[$cacheKey])) {
+            return $this->resolvedFiltersCache[$cacheKey];
+        }
+
         $definitionsTable = config('filterbymodel.tables.filter_definitions', 'filter_definitions');
         $userFk = config('filterbymodel.user.foreign_key', 'user_id');
 
@@ -55,7 +163,7 @@ class ModelFilterService
             ->keyBy('scope_filter');
 
         if ($allowedDefinitions->isEmpty()) {
-            return [];
+            return $this->resolvedFiltersCache[$cacheKey] = [];
         }
 
         $userFilters = UserFilter::where($userFk, $userId)
@@ -67,7 +175,7 @@ class ModelFilterService
             ->get();
 
         if ($userFilters->isEmpty()) {
-            return [];
+            return $this->resolvedFiltersCache[$cacheKey] = [];
         }
 
         $resolvedStructure = [];
@@ -150,19 +258,45 @@ class ModelFilterService
             }
         }
 
-        return $resolvedStructure;
+        return $this->resolvedFiltersCache[$cacheKey] = $resolvedStructure;
     }
 
     /**
      * Modifica la query di lettura Eloquent per applicare i perimetri di sicurezza autorizzati.
+     *
+     * Logica:
+     * 1. Se l'utente ha il bypass globale -> nessun filtro, esce subito
+     * 2. Se il modello NON ha regole in filter_definitions -> nessun filtro (modello non protetto)
+     * 3. Se il modello ha regole MA l'utente non ha filtri assegnati:
+     *    - unassigned_behavior = 'deny' -> WHERE 1 = 0 (Fail-Closed)
+     *    - unassigned_behavior = 'allow' -> nessun filtro (Fail-Open)
+     * 4. Altrimenti: applica i filtri risolti per gruppo
      */
     public function applicaFiltroQuery(Builder $builder): void
     {
+        // 1. Se l'utente ha il bypass globale, esce subito senza toccare la query
+        if ($this->isUserBypassed()) {
+            return;
+        }
+
         $modelClass = get_class($builder->getModel());
+
+        // 2. Verifichiamo se il modello è protetto (ha regole in filter_definitions)
+        if (!$this->hasDefinitionsForModel($modelClass)) {
+            return;
+        }
+
         $tableName = $builder->getModel()->getTable();
         $resolvedGroups = $this->ottieniFiltriRisolti($modelClass);
 
+        // 3. Se il modello è protetto ma l'utente non ha filtri assegnati
         if (empty($resolvedGroups)) {
+            $behavior = config('filterbymodel.security.unassigned_behavior', 'deny');
+            if ($behavior === 'deny') {
+                // FAIL-CLOSED: Blocca la query, l'utente non vede nulla
+                $builder->whereRaw('1 = 0');
+            }
+            // Se 'allow': non applichiamo filtri (l'utente vede tutto)
             return;
         }
 
@@ -264,11 +398,33 @@ class ModelFilterService
             return;
         }
 
+        // Se l'utente ha il bypass globale, operazione consentita subito
+        if ($this->isUserBypassed()) {
+            return;
+        }
+
         $modelClass = get_class($modelInstance);
+
+        // Se il modello non ha regole perimetrali a sistema, tutti possono operare
+        if (!$this->hasDefinitionsForModel($modelClass)) {
+            return;
+        }
+
         $resolvedGroups = $this->ottieniFiltriRisolti($modelClass);
 
-        // Se non sono stati configurati filtri per questo modello a DB, l'utente ha accesso
+        // Se il modello è protetto ma l'utente non ha filtri assegnati
         if (empty($resolvedGroups)) {
+            $behavior = config('filterbymodel.security.unassigned_behavior', 'deny');
+            if ($behavior === 'deny') {
+                $errorMessage = config(
+                    'filterbymodel.security.unauthorized_message',
+                    'Operazione bloccata. Non possiedi i requisiti di competenza necessari per interagire con questa risorsa.'
+                );
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'authorization' => $errorMessage,
+                ]);
+            }
+            // Se 'allow': operazione consentita
             return;
         }
 
@@ -350,8 +506,9 @@ class ModelFilterService
 
     /**
      * Metodo ricorsivo ottimizzato: carica la mappa dell'albero in memoria con 1 sola query.
+     * Protezione anti-loop con array di nodi visitati.
      */
-    private function getTreeChildrenIds(string $tableName, int $parentId, ?array $allRows = null, string $parentColumn = 'padre_id'): array
+    private function getTreeChildrenIds(string $tableName, int $parentId, ?array $allRows = null, string $parentColumn = 'padre_id', array $visited = []): array
     {
         if ($allRows === null) {
             $allRows = DB::table($tableName)->select('id', $parentColumn)->get()->toArray();
@@ -360,10 +517,17 @@ class ModelFilterService
         $childrenIds = [];
         foreach ($allRows as $row) {
             if (isset($row->{$parentColumn}) && (int) $row->{$parentColumn} === $parentId) {
-                $childrenIds[] = (int) $row->id;
+                $childId = (int) $row->id;
+
+                // Protezione anti-loop: evita ricorsione infinita su relazioni circolari
+                if (in_array($childId, $visited, true)) {
+                    continue;
+                }
+
+                $childrenIds[] = $childId;
                 $childrenIds = array_merge(
                     $childrenIds,
-                    $this->getTreeChildrenIds($tableName, (int) $row->id, $allRows, $parentColumn)
+                    $this->getTreeChildrenIds($tableName, $childId, $allRows, $parentColumn, array_merge($visited, [$childId]))
                 );
             }
         }
@@ -382,6 +546,7 @@ class ModelFilterService
         $ignoredClasses = config('filterbymodel.models.ignore', [
             \SalvatoreCervone\FilterByModel\Models\FilterDefinition::class,
             \SalvatoreCervone\FilterByModel\Models\UserFilter::class,
+            \SalvatoreCervone\FilterByModel\Models\UserBypass::class,
         ]);
 
         // 1. Auto-discovery abilitato di default
@@ -773,5 +938,120 @@ class ModelFilterService
             '@null'                            => null,
             default                            => $value,
         };
+    }
+
+    /**
+     * Risolve la configurazione del modello utente dalla sezione 'users.models' del config.
+     *
+     * @param string|null $userType Classe del modello utente (default: primo modello configurato)
+     * @return array Configurazione del modello utente
+     */
+    public function resolveUserModelConfig(?string $userType = null): array
+    {
+        $modelsConfig = config('filterbymodel.users.models', []);
+
+        // Se è specificato un tipo e lo troviamo nella configurazione
+        if ($userType && isset($modelsConfig[$userType])) {
+            return array_merge(['class' => $userType], $modelsConfig[$userType]);
+        }
+
+        // Fallback: primo modello configurato
+        foreach ($modelsConfig as $class => $config) {
+            return array_merge(['class' => $class], $config);
+        }
+
+        // Fallback finale: configurazione legacy dalla sezione 'user'
+        return [
+            'class'       => config('filterbymodel.user.model', 'App\Models\User'),
+            'label'       => 'Utenti',
+            'table'       => config('filterbymodel.user.table', 'users'),
+            'foreign_key' => config('filterbymodel.user.foreign_key', 'user_id'),
+            'primary_key' => config('filterbymodel.user.primary_key', 'id'),
+            'display'     => config('filterbymodel.user.display_fields', ['email']),
+            'separator'   => ' ',
+            'subtext'     => config('filterbymodel.user.secondary_fields', ['email']),
+            'searchable'  => config('filterbymodel.user.searchable_fields', ['name', 'email']),
+        ];
+    }
+
+    /**
+     * Formatta i campi di un utente per la visualizzazione usando la configurazione 'display' (array di campi).
+     *
+     * @param object|array $row       Riga dell'utente
+     * @param array        $userConfig Configurazione del modello utente (dalla sezione users.models)
+     * @param string|null  $idField   Campo ID (override manuale, se null usa config)
+     * @return array ['id' => ..., 'label' => ..., 'sublabel' => ..., 'name' => ..., 'email' => ...]
+     */
+    public function formatUserDisplay($row, array $userConfig, ?string $idField = null): array
+    {
+        $idCol = $idField ?: ($userConfig['primary_key'] ?? 'id');
+
+        $getValue = function ($field) use ($row) {
+            if (is_object($row)) {
+                return isset($row->{$field}) && $row->{$field} !== null && trim((string) $row->{$field}) !== ''
+                    ? trim((string) $row->{$field})
+                    : null;
+            }
+            return isset($row[$field]) && $row[$field] !== null && trim((string) $row[$field]) !== ''
+                ? trim((string) $row[$field])
+                : null;
+        };
+
+        $id = $getValue($idCol) ?? (is_object($row) ? ($row->id ?? null) : ($row['id'] ?? null));
+
+        // 1. Risoluzione Etichetta Principale: concatena i campi definiti in 'display'
+        $displayFields = (array) ($userConfig['display'] ?? ['email']);
+        $separator = $userConfig['separator'] ?? ' ';
+        $labelParts = [];
+        foreach ($displayFields as $field) {
+            $val = $getValue($field);
+            if ($val !== null) {
+                $labelParts[] = $val;
+            }
+        }
+        $label = implode($separator, $labelParts);
+
+        // Fallback progressivo se il display non produce risultato
+        if (empty($label)) {
+            // Prova i campi legacy (cognome + nome, name, email)
+            $cognome = $getValue('cognome');
+            $nome = $getValue('nome');
+            if ($cognome && $nome) {
+                $label = "{$cognome} {$nome}";
+            } elseif ($cognome) {
+                $label = $cognome;
+            } elseif ($nome) {
+                $label = $nome;
+            }
+        }
+
+        if (empty($label)) {
+            $label = $getValue('name') ?: $getValue('email') ?: "Utente #{$id}";
+        }
+
+        // 2. Risoluzione Sottotesto: concatena i campi definiti in 'subtext'
+        $subtextFields = (array) ($userConfig['subtext'] ?? ['email']);
+        $sublabelParts = [];
+        foreach ($subtextFields as $field) {
+            $val = $getValue($field);
+            if ($val !== null && $val !== $label) {
+                $sublabelParts[] = $val;
+            }
+        }
+        $sublabel = implode(' • ', $sublabelParts);
+
+        if (empty($sublabel)) {
+            $sublabel = "ID: {$id}";
+        }
+
+        $email = $getValue('email') ?: '';
+
+        return [
+            'id'       => $id,
+            'name'     => $label,
+            'label'    => $label,
+            'email'    => $email,
+            'sublabel' => $sublabel,
+        ];
     }
 }

@@ -12,8 +12,9 @@ return [
     */
 
     'tables' => [
-        'filter_definitions' => 'filter_definitions',
-        'user_filters' => 'user_filters',
+        'filter_definitions'    => 'filter_definitions',
+        'user_filters'          => 'user_filters',
+        'filter_user_bypasses'  => 'filter_user_bypasses',
     ],
 
     /*
@@ -42,6 +43,59 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Modelli Utente Interrogabili dalla Dashboard (Multi-Modello)
+    |--------------------------------------------------------------------------
+    |
+    | Definisce i modelli utente disponibili nella Dashboard per la ricerca
+    | e l'assegnazione di filtri o bypass globale.
+    |
+    | Per ogni modello si possono specificare:
+    | - label:       Nome visivo nella UI (es. "Utenti", "Amministratori")
+    | - table:       Nome della tabella database (se vuoto, viene risolto dal modello)
+    | - foreign_key: Chiave esterna per collegare l'utente ai filtri
+    | - primary_key: Chiave primaria della tabella utente
+    | - display:     Array di campi concatenati per formare l'etichetta principale
+    |                Es. ['cognome', 'nome'] => "Rossi Mario"
+    |                Es. ['matricola', 'name'] => "MAT-001 Mario Rossi"
+    | - separator:   Separatore tra i campi del display (default: ' ')
+    | - subtext:     Campi mostrati come sottotesto (es. ['email', 'ruolo'])
+    | - searchable:  Campi inclusi nella ricerca LIKE
+    |
+    */
+
+    'users' => [
+        // Modelli interrogabili dalla Dashboard per assegnare filtri o bypass
+        'models' => [
+            'App\Models\User' => [
+                'label'       => 'Utenti',
+                'table'       => 'users',
+                'foreign_key' => 'user_id',
+                'primary_key' => 'id',
+                'display'     => ['cognome', 'nome'],
+                'separator'   => ' ',
+                'subtext'     => ['email'],
+                'searchable'  => ['name', 'cognome', 'nome', 'email', 'matricola'],
+            ],
+            // Esempio: modello Admin separato
+            // 'App\Models\Admin' => [
+            //     'label'       => 'Amministratori',
+            //     'table'       => 'admins',
+            //     'foreign_key' => 'admin_id',
+            //     'primary_key' => 'id',
+            //     'display'     => ['name', 'email'],
+            //     'separator'   => ' — ',
+            //     'subtext'     => ['email', 'ruolo'],
+            //     'searchable'  => ['name', 'email', 'username'],
+            // ],
+        ],
+
+        // Super-utenti con bypass hardcodato (bootstrap / CLI / fallback)
+        // Questi ID scavalcano sempre i filtri senza necessità di configurazione a DB
+        'super_user_ids' => [],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Scoperta Automatica dei Modelli (Auto-Discovery)
     |--------------------------------------------------------------------------
     |
@@ -65,7 +119,7 @@ return [
         ],
 
         // Modelli da ignorare
-        'ignore' => [\SalvatoreCervone\FilterByModel\Models\FilterDefinition::class, \SalvatoreCervone\FilterByModel\Models\UserFilter::class],
+        'ignore' => [\SalvatoreCervone\FilterByModel\Models\FilterDefinition::class, \SalvatoreCervone\FilterByModel\Models\UserFilter::class, \SalvatoreCervone\FilterByModel\Models\UserBypass::class],
 
         // Modelli manuali/espliciti aggiuntivi
         'explicit' => [
@@ -111,6 +165,10 @@ return [
     | - auth_id_resolver: closure personalizzata per risolvere l'ID dell'utente
     |   (se null, usa Auth::id())
     | - unauthorized_message: messaggio di errore sollevato in scrittura/cancellazione
+    | - unassigned_behavior: comportamento per utenti senza bypass e senza filtri
+    |   su un modello protetto:
+    |   - 'deny' (CONSIGLIATO): Fail-Closed, l'utente non vede nulla (WHERE 1 = 0)
+    |   - 'allow': Fail-Open, l'utente vede tutto (comportamento permissivo)
     |
     */
 
@@ -121,6 +179,11 @@ return [
         'global_scope_name' => 'filter_by_model_security_perimeter',
         'auth_id_resolver' => null, // fn() => Auth::id(),
         'unauthorized_message' => 'Operazione bloccata. Non possiedi i requisiti di competenza necessari per interagire con questa risorsa.',
+
+        // Comportamento per utenti NON bypassati e SENZA filtri assegnati per un modello protetto:
+        // 'deny' = Fail-Closed (WHERE 1 = 0) -> L'utente non configurato non vede nulla -> CONSIGLIATO
+        // 'allow' = Fail-Open -> L'utente non configurato vede tutto
+        'unassigned_behavior' => env('FILTERBYMODEL_UNASSIGNED_BEHAVIOR', 'deny'),
     ],
 
     /*

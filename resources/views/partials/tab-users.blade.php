@@ -20,6 +20,23 @@
 
   <!-- SELETTORE UTENTE CON AUTOCOMPLETE -->
   <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+
+    <!-- SELETTORE MODELLO UTENTE (se più di un modello è configurato) -->
+    <div v-if="availableUserModels.length > 1" class="mb-2">
+      <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700 mb-1">
+        Tipo Utente
+      </label>
+      <select
+        v-model="selectedUserType"
+        @change="onUserTypeChange"
+        class="w-full sm:w-auto border-2 border-slate-300 rounded-xl p-2.5 text-xs font-semibold text-slate-800 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 bg-white"
+      >
+        <option v-for="m in availableUserModels" :key="m.class" :value="m.class">
+          @{{ m.label }}
+        </option>
+      </select>
+    </div>
+
     <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700">
       Seleziona l'operatore da configurare
     </label>
@@ -93,11 +110,89 @@
     </div>
   </div>
 
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- CARD BYPASS GLOBALE (Accesso Illimitato) -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div v-if="selectedUser" class="rounded-2xl border-2 shadow-xs transition-all duration-300"
+    :class="userBypassStatus.is_bypassed 
+      ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300' 
+      : 'bg-white border-slate-200'"
+  >
+    <div class="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div class="flex items-center gap-3.5">
+        <div class="p-3 rounded-2xl shadow-sm" :class="userBypassStatus.is_bypassed ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-500'">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-base font-extrabold tracking-tight" :class="userBypassStatus.is_bypassed ? 'text-amber-900' : 'text-slate-900'">
+            <span v-if="userBypassStatus.is_bypassed">⚡ Accesso Globale Attivo (Bypass Filtri)</span>
+            <span v-else>Accesso Globale (Bypass Filtri)</span>
+          </h3>
+          <p class="text-xs mt-0.5" :class="userBypassStatus.is_bypassed ? 'text-amber-700' : 'text-slate-500'">
+            <template v-if="userBypassStatus.is_bypassed">
+              Questo utente scavalca qualsiasi perimetro e accede a <strong>tutti i dati</strong> senza alcuna restrizione.
+            </template>
+            <template v-else>
+              Attiva per consentire a questo utente l'accesso a tutti i dati senza filtri perimetrali.
+            </template>
+          </p>
+          <p v-if="userBypassStatus.is_hardcoded" class="text-[10px] text-amber-600 font-bold mt-1 flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            Bypass hardcodato nella configurazione di sistema (non disattivabile dalla UI)
+          </p>
+          <p v-if="userBypassStatus.reason" class="text-[11px] text-amber-700 mt-1">
+            <strong>Motivazione:</strong> @{{ userBypassStatus.reason }}
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- INPUT MOTIVAZIONE (visibile solo quando si attiva il bypass) -->
+        <input 
+          v-if="!userBypassStatus.is_bypassed && !userBypassStatus.is_hardcoded"
+          v-model="bypassReason"
+          type="text"
+          placeholder="Motivazione (opzionale)"
+          class="border border-slate-300 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 w-48 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20"
+        >
+
+        <!-- TOGGLE SWITCH -->
+        <button
+          @click="toggleUserBypass"
+          :disabled="userBypassStatus.is_hardcoded || isTogglingBypass"
+          class="relative inline-flex h-8 w-14 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          :class="userBypassStatus.is_bypassed ? 'bg-amber-500' : 'bg-slate-300'"
+        >
+          <span 
+            class="pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+            :class="userBypassStatus.is_bypassed ? 'translate-x-6' : 'translate-x-0'"
+          ></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- SEZIONE FILTRI UTENTE ATTIVI & AGGIUNTA NUOVO FILTRO -->
   <div v-if="selectedUser" class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
     
+    <!-- OVERLAY BYPASS ATTIVO: Disattiva visivamente i filtri -->
+    <template v-if="userBypassStatus.is_bypassed">
+      <div class="lg:col-span-12 p-6 bg-amber-50 border-2 border-amber-200 rounded-2xl text-center">
+        <div class="flex items-center justify-center gap-2 text-amber-800 font-bold text-sm mb-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Bypass Globale Attivo
+        </div>
+        <p class="text-xs text-amber-700">
+          Questo utente possiede l'accesso globale. I singoli filtri perimetrali sottostanti sono <strong>inattivi</strong> e non vengono applicati.<br>
+          Per gestire i filtri individuali, disattiva prima il bypass globale.
+        </p>
+      </div>
+    </template>
+
     <!-- FORM AGGIUNTA FILTRO -->
-    <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
+    <div v-if="!userBypassStatus.is_bypassed" class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
       <div class="border-b border-slate-100 pb-3">
         <h3 class="text-sm font-bold text-slate-900">Assegna Nuova Competenza</h3>
         <p class="text-xs text-slate-500 mt-0.5">Definisci a quale elemento o ufficio ha accesso l'operatore.</p>
@@ -217,17 +312,22 @@
     </div>
 
     <!-- LISTA FILTRI ATTIVI UTENTE -->
-    <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+    <div :class="userBypassStatus.is_bypassed ? 'lg:col-span-12' : 'lg:col-span-7'" class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <h3 class="text-sm font-bold text-slate-900">Competenze Assegnate (@{{ currentUserFilters.length }})</h3>
         <span class="text-xs text-slate-500">Operatore: @{{ selectedUser.label || selectedUser.name || '#' + selectedUser.id }}</span>
       </div>
 
       <div v-if="currentUserFilters.length === 0" class="text-center py-10 text-xs text-slate-400">
-        Nessun filtro o vincolo assegnato a questo operatore (ha accesso globale non ristretto).
+        <template v-if="userBypassStatus.is_bypassed">
+          Nessun filtro assegnato. L'utente ha il <strong>bypass globale attivo</strong> e accede a tutti i dati.
+        </template>
+        <template v-else>
+          Nessun filtro o vincolo assegnato a questo operatore.
+        </template>
       </div>
 
-      <div v-else class="space-y-3">
+      <div v-else class="space-y-3" :class="{ 'opacity-40 pointer-events-none': userBypassStatus.is_bypassed }">
         <div 
           v-for="f in currentUserFilters" 
           :key="f.id"
@@ -287,6 +387,7 @@
             @click="deleteUserFilter(f.id)"
             class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
             title="Revoca competenza"
+            :disabled="userBypassStatus.is_bypassed"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
           </button>
@@ -295,4 +396,5 @@
     </div>
 
   </div>
+
 </main>

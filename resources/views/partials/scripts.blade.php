@@ -396,6 +396,86 @@
       const isLoadingCriteriaItems = ref(false);
       let searchTimeout = null;
 
+      // --- STATO BYPASS GLOBALE ---
+      const userBypassStatus = reactive({
+        is_bypassed: false,
+        is_hardcoded: false,
+        reason: null,
+        created_at: null
+      });
+      const bypassReason = ref('');
+      const isTogglingBypass = ref(false);
+      const availableUserModels = ref([]);
+      const selectedUserType = ref('');
+
+      const loadAvailableUserModels = async () => {
+        try {
+          const res = await apiFetch('/available-user-models');
+          availableUserModels.value = res.data || res;
+          if (availableUserModels.value.length > 0 && !selectedUserType.value) {
+            selectedUserType.value = availableUserModels.value[0].class;
+          }
+        } catch (e) {
+          console.warn('Impossibile caricare i modelli utente:', e);
+        }
+      };
+
+      const onUserTypeChange = () => {
+        selectedUser.value = null;
+        currentUserFilters.value = [];
+        userSearchQuery.value = '';
+        userSearchResults.value = [];
+        Object.assign(userBypassStatus, { is_bypassed: false, is_hardcoded: false, reason: null, created_at: null });
+      };
+
+      const loadBypassStatus = async (userId) => {
+        try {
+          const userType = selectedUserType.value || '';
+          const params = new URLSearchParams();
+          params.append('user_id', userId);
+          if (userType) params.append('user_type', userType);
+          const res = await apiFetch(`/user-bypass-status?${params.toString()}`);
+          Object.assign(userBypassStatus, {
+            is_bypassed: res.is_bypassed || false,
+            is_hardcoded: res.is_hardcoded || false,
+            reason: res.reason || null,
+            created_at: res.created_at || null
+          });
+        } catch (e) {
+          console.warn('Impossibile caricare lo stato di bypass:', e);
+          Object.assign(userBypassStatus, { is_bypassed: false, is_hardcoded: false, reason: null, created_at: null });
+        }
+      };
+
+      const toggleUserBypass = async () => {
+        if (!selectedUser.value || isTogglingBypass.value) return;
+        isTogglingBypass.value = true;
+        try {
+          const newState = !userBypassStatus.is_bypassed;
+          await apiFetch('/user-bypass-toggle', {
+            method: 'POST',
+            body: JSON.stringify({
+              user_id: selectedUser.value.id,
+              user_type: selectedUserType.value || null,
+              enabled: newState,
+              reason: newState ? (bypassReason.value || null) : null
+            })
+          });
+          showToast(newState
+            ? 'Bypass globale attivato. L\'utente ha ora accesso illimitato.'
+            : 'Bypass globale disattivato. L\'utente è ora soggetto ai filtri.',
+            'success'
+          );
+          bypassReason.value = '';
+          await loadBypassStatus(selectedUser.value.id);
+          await loadSummary();
+        } catch (e) {
+          showToast(e.message, 'error');
+        } finally {
+          isTogglingBypass.value = false;
+        }
+      };
+
       const userForm = reactive({
         scope_filter: '',
         target_model: '',
@@ -470,7 +550,10 @@
         selectedUser.value = u;
         userSearchQuery.value = u.label || u.name || `Utente #${u.id}`;
         isUserDropdownOpen.value = false;
-        await loadUserFilters(u.id);
+        await Promise.all([
+          loadUserFilters(u.id),
+          loadBypassStatus(u.id)
+        ]);
       };
 
       const loadUserFilters = async (userId) => {
@@ -690,6 +773,7 @@
         loadAvailableModels();
         loadDefinitions();
         loadSummary();
+        loadAvailableUserModels();
       });
 
       return {
@@ -760,7 +844,15 @@
         resetConditionColumn,
         isTableMissing,
         missingTableName,
-        onPivotTableInput
+        onPivotTableInput,
+        // --- BYPASS GLOBALE ---
+        userBypassStatus,
+        bypassReason,
+        isTogglingBypass,
+        toggleUserBypass,
+        availableUserModels,
+        selectedUserType,
+        onUserTypeChange
       };
     }
   }).mount('#app');

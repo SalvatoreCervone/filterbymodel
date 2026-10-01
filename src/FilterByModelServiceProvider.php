@@ -59,6 +59,7 @@ class FilterByModelServiceProvider extends ServiceProvider
             $ignored = config('filterbymodel.models.ignore', [
                 \SalvatoreCervone\FilterByModel\Models\FilterDefinition::class,
                 \SalvatoreCervone\FilterByModel\Models\UserFilter::class,
+                \SalvatoreCervone\FilterByModel\Models\UserBypass::class,
             ]);
 
             if (in_array($modelClass, $ignored, true)) {

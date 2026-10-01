@@ -34,3 +34,8 @@ Route::get('/user-filters', [UserFilterController::class, 'index']);
 Route::post('/user-filters', [UserFilterController::class, 'store']);
 Route::post('/user-filters/copy', [UserFilterController::class, 'copy']);
 Route::delete('/user-filters/{id}', [UserFilterController::class, 'destroy']);
+
+// --- Bypass Globale Utente ---
+Route::get('/user-bypass-status', [UserFilterController::class, 'bypassStatus']);
+Route::post('/user-bypass-toggle', [UserFilterController::class, 'toggleBypass']);
+Route::get('/available-user-models', [UserFilterController::class, 'availableUserModels']);

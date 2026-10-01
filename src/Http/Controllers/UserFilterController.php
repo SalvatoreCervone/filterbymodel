@@ -5,7 +5,9 @@ namespace SalvatoreCervone\FilterByModel\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use SalvatoreCervone\FilterByModel\Models\UserBypass;
 use SalvatoreCervone\FilterByModel\Models\UserFilter;
+use SalvatoreCervone\FilterByModel\Services\ModelFilterService;
 
 class UserFilterController extends Controller
 {
@@ -172,21 +174,30 @@ class UserFilterController extends Controller
     /**
      * Ricerca utenti/operatori per l'autocomplete.
      * Supporta parametri dinamici per tabella, modello, campo ID e campo Label.
+     * Utilizza la nuova configurazione multi-modello con display come array.
      */
     public function searchUsers(Request $request): JsonResponse
     {
         $query = (string) $request->input('q', '');
+        $userType = $request->input('user_type');
         $tableName = $request->input('table');
         $modelClass = $request->input('model');
-        $idField = $request->input('id_field', config('filterbymodel.user.primary_key', 'id'));
+        $idField = $request->input('id_field');
         $labelField = $request->input('label_field', null);
         $limit = min((int) $request->input('limit', 20), 100);
 
+        /** @var ModelFilterService $service */
+        $service = app(ModelFilterService::class);
+
+        // Risolvi la configurazione del modello utente
+        $userConfig = $service->resolveUserModelConfig($userType ?: $modelClass);
+
         // Se non specificata la tabella, prova a ricavarla dal modello configurato o default 'users'
-        $userModel = $modelClass ?: config('filterbymodel.user.model', 'App\\Models\\User');
+        $userModel = $modelClass ?: ($userConfig['class'] ?? config('filterbymodel.user.model', 'App\\Models\\User'));
+        $resolvedIdField = $idField ?: ($userConfig['primary_key'] ?? config('filterbymodel.user.primary_key', 'id'));
 
         $dbQuery = null;
-        $resolvedTable = config('filterbymodel.user.table', 'users');
+        $resolvedTable = $userConfig['table'] ?? config('filterbymodel.user.table', 'users');
 
         if (class_exists($userModel)) {
             $instance = new $userModel();
@@ -214,14 +225,14 @@ class UserFilterController extends Controller
 
         // Filtro di ricerca se q è presente
         if (trim($query) !== '') {
-            $searchableFields = config('filterbymodel.user.searchable_fields', [
+            $searchableFields = (array) ($userConfig['searchable'] ?? config('filterbymodel.user.searchable_fields', [
                 'name', 'cognome', 'nome', 'email', 'username', 'matricola', 'ragione_sociale', 'denominazione'
-            ]);
+            ]));
 
-            $dbQuery->where(function ($qBuilder) use ($query, $idField, $labelField, $columns, $searchableFields) {
+            $dbQuery->where(function ($qBuilder) use ($query, $resolvedIdField, $labelField, $columns, $searchableFields) {
                 // Ricerca su ID se numerico
-                if (is_numeric($query) && (empty($columns) || in_array($idField, $columns))) {
-                    $qBuilder->orWhere($idField, $query);
+                if (is_numeric($query) && (empty($columns) || in_array($resolvedIdField, $columns))) {
+                    $qBuilder->orWhere($resolvedIdField, $query);
                 }
 
                 // Ricerca su label_field specificato (se passato)
@@ -240,9 +251,9 @@ class UserFilterController extends Controller
 
         $results = $dbQuery->limit($limit)->get();
 
-        // Mappa i risultati formattando i campi utente
-        $formatted = $results->map(function ($row) use ($idField, $labelField, $columns) {
-            return $this->formatUserRow($row, $columns, $idField, $labelField);
+        // Mappa i risultati formattando i campi utente con la nuova configurazione display array
+        $formatted = $results->map(function ($row) use ($service, $userConfig, $resolvedIdField) {
+            return $service->formatUserDisplay($row, $userConfig, $resolvedIdField);
         });
 
         return response()->json($formatted);
@@ -294,8 +305,24 @@ class UserFilterController extends Controller
 
             $results = $query->limit($limit)->get();
 
-            $items = $results->map(function ($row) use ($columns, $pk) {
-                $formatted = $this->formatUserRow($row, $columns, $pk, null);
+            /** @var ModelFilterService $service */
+            $service = app(ModelFilterService::class);
+
+            // Crea una configurazione generica per formattare le righe del criterio
+            $criteriaConfig = [
+                'primary_key' => $pk,
+                'display'     => array_values(array_intersect(['denominazione', 'nome', 'descrizione', 'name', 'label', 'titolo'], $columns)),
+                'separator'   => ' — ',
+                'subtext'     => array_values(array_intersect(['codice', 'email', 'ragione_sociale'], $columns)),
+            ];
+
+            // Fallback se nessun campo display è trovato
+            if (empty($criteriaConfig['display'])) {
+                $criteriaConfig['display'] = [$pk];
+            }
+
+            $items = $results->map(function ($row) use ($service, $criteriaConfig, $pk) {
+                $formatted = $service->formatUserDisplay($row, $criteriaConfig, $pk);
                 $id = $formatted['id'];
                 $label = $formatted['label'];
                 $sublabel = ($formatted['sublabel'] !== "ID: {$id}") ? $formatted['sublabel'] : '';
@@ -322,21 +349,31 @@ class UserFilterController extends Controller
     /**
      * Resoconto e riepilogo di tutti gli utenti con lo stato dei loro permessi/filtri bindati.
      * Include conteggi totali, filtri per stato (con permessi / senza permessi) e ricerca.
+     * Ora include anche lo stato del bypass globale per ciascun utente.
      */
     public function summary(Request $request): JsonResponse
     {
         $query = (string) $request->input('q', '');
-        $statusFilter = $request->input('status', 'all'); // 'all', 'with_filters', 'without_filters'
+        $statusFilter = $request->input('status', 'all'); // 'all', 'with_filters', 'without_filters', 'bypassed'
+        $userType = $request->input('user_type');
         $tableName = $request->input('table');
         $modelClass = $request->input('model');
-        $idField = $request->input('id_field', config('filterbymodel.user.primary_key', 'id'));
+        $idField = $request->input('id_field');
         $labelField = $request->input('label_field', null);
         $userFk = config('filterbymodel.user.foreign_key', 'user_id');
 
-        $userModel = $modelClass ?: config('filterbymodel.user.model', 'App\\Models\\User');
+        /** @var ModelFilterService $service */
+        $service = app(ModelFilterService::class);
+
+        // Risolvi la configurazione del modello utente
+        $userConfig = $service->resolveUserModelConfig($userType ?: $modelClass);
+
+        $userModel = $modelClass ?: ($userConfig['class'] ?? config('filterbymodel.user.model', 'App\\Models\\User'));
+        $resolvedIdField = $idField ?: ($userConfig['primary_key'] ?? config('filterbymodel.user.primary_key', 'id'));
+        $resolvedUserType = $userType ?: $userModel;
 
         $dbQuery = null;
-        $resolvedTable = config('filterbymodel.user.table', 'users');
+        $resolvedTable = $userConfig['table'] ?? config('filterbymodel.user.table', 'users');
 
         if (class_exists($userModel)) {
             $instance = new $userModel();
@@ -362,13 +399,13 @@ class UserFilterController extends Controller
 
         // Ricerca per testo (se presente)
         if (trim($query) !== '') {
-            $searchableFields = config('filterbymodel.user.searchable_fields', [
+            $searchableFields = (array) ($userConfig['searchable'] ?? config('filterbymodel.user.searchable_fields', [
                 'name', 'cognome', 'nome', 'email', 'username', 'matricola', 'ragione_sociale', 'denominazione'
-            ]);
+            ]));
 
-            $dbQuery->where(function ($qBuilder) use ($query, $idField, $labelField, $columns, $searchableFields) {
-                if (is_numeric($query) && (empty($columns) || in_array($idField, $columns))) {
-                    $qBuilder->orWhere($idField, $query);
+            $dbQuery->where(function ($qBuilder) use ($query, $resolvedIdField, $labelField, $columns, $searchableFields) {
+                if (is_numeric($query) && (empty($columns) || in_array($resolvedIdField, $columns))) {
+                    $qBuilder->orWhere($resolvedIdField, $query);
                 }
                 if ($labelField && (empty($columns) || in_array($labelField, $columns))) {
                     $qBuilder->orWhere($labelField, 'LIKE', "%{$query}%");
@@ -386,20 +423,43 @@ class UserFilterController extends Controller
         // Recupera tutti i filtri utente esistenti
         $allUserFilters = UserFilter::all()->groupBy($userFk);
 
+        // Recupera tutti gli utenti con bypass attivo
+        $bypassTable = config('filterbymodel.tables.filter_user_bypasses', 'filter_user_bypasses');
+        $bypassedUserIds = [];
+        try {
+            $bypassedUserIds = \Illuminate\Support\Facades\DB::table($bypassTable)
+                ->where('user_type', $resolvedUserType)
+                ->pluck('user_id')
+                ->toArray();
+        } catch (\Throwable $e) {
+            // Tabella non ancora creata
+        }
+
+        // Super-utenti hardcodati
+        $superUserIds = (array) config('filterbymodel.users.super_user_ids', []);
+
         $totalUsers = $allUsers->count();
         $totalWithFilters = 0;
         $totalWithoutFilters = 0;
+        $totalBypassed = 0;
 
         $items = [];
 
         foreach ($allUsers as $row) {
-            $formattedUser = $this->formatUserRow($row, $columns, $idField, $labelField);
+            $formattedUser = $service->formatUserDisplay($row, $userConfig, $resolvedIdField);
             $id = $formattedUser['id'];
 
             $userFilters = $allUserFilters->get($id, collect());
             $hasFilters = $userFilters->isNotEmpty();
             $filtersCount = $userFilters->count();
             $groupsCount = $userFilters->pluck('group')->unique()->count();
+
+            // Stato bypass
+            $isBypassed = in_array($id, $bypassedUserIds, false) || in_array($id, $superUserIds, false);
+
+            if ($isBypassed) {
+                $totalBypassed++;
+            }
 
             if ($hasFilters) {
                 $totalWithFilters++;
@@ -412,6 +472,9 @@ class UserFilterController extends Controller
                 continue;
             }
             if ($statusFilter === 'without_filters' && $hasFilters) {
+                continue;
+            }
+            if ($statusFilter === 'bypassed' && !$isBypassed) {
                 continue;
             }
 
@@ -428,6 +491,7 @@ class UserFilterController extends Controller
                 'has_filters'     => $hasFilters,
                 'filters_count'   => $filtersCount,
                 'groups_count'    => $groupsCount,
+                'is_bypassed'     => $isBypassed,
                 'summaryBadges'   => $byType,
                 'filters_summary' => $byType,
             ]);
@@ -438,90 +502,121 @@ class UserFilterController extends Controller
             'total_users'           => $totalUsers,
             'total_with_filters'    => $totalWithFilters,
             'total_without_filters' => $totalWithoutFilters,
+            'total_bypassed'        => $totalBypassed,
         ]);
     }
 
     /**
-     * Risolve e formatta i campi utente (nome/cognome, email, sublabel) in modo dinamico e flessibile.
+     * Restituisce lo stato di bypass globale per un utente specifico.
      */
-    protected function formatUserRow($row, array $columns = [], ?string $idField = null, ?string $labelField = null): array
+    public function bypassStatus(Request $request): JsonResponse
     {
-        $idCol = $idField ?: config('filterbymodel.user.primary_key', 'id');
-        $id = is_object($row) ? ($row->{$idCol} ?? $row->id ?? null) : ($row[$idCol] ?? $row['id'] ?? null);
+        $validated = $request->validate([
+            'user_id'   => 'required',
+            'user_type' => 'nullable|string|max:255',
+        ]);
 
-        $getValue = function($field) use ($row) {
-            if (is_object($row)) {
-                return isset($row->{$field}) && $row->{$field} !== null && trim((string)$row->{$field}) !== ''
-                    ? trim((string)$row->{$field})
-                    : null;
-            }
-            return isset($row[$field]) && $row[$field] !== null && trim((string)$row[$field]) !== ''
-                ? trim((string)$row[$field])
-                : null;
-        };
+        $userId = $validated['user_id'];
+        $userType = $validated['user_type'] ?? config('filterbymodel.user.model', 'App\Models\User');
 
-        // 1. Risoluzione Etichetta Principale (Nome Completo / Cognome Nome / Ragione Sociale)
-        $label = null;
-        if ($labelField && $getValue($labelField)) {
-            $label = $getValue($labelField);
+        /** @var ModelFilterService $service */
+        $service = app(ModelFilterService::class);
+        $isBypassed = $service->isUserBypassed((int) $userId, $userType);
+
+        // Recupera anche la riga dal database (se esiste) per mostrare la motivazione
+        $bypassRecord = null;
+        $bypassTable = config('filterbymodel.tables.filter_user_bypasses', 'filter_user_bypasses');
+        try {
+            $bypassRecord = \Illuminate\Support\Facades\DB::table($bypassTable)
+                ->where('user_id', $userId)
+                ->where('user_type', $userType)
+                ->first();
+        } catch (\Throwable $e) {}
+
+        $isHardcoded = in_array((int) $userId, (array) config('filterbymodel.users.super_user_ids', []), false);
+
+        return response()->json([
+            'is_bypassed'   => $isBypassed,
+            'is_hardcoded'  => $isHardcoded,
+            'reason'        => $bypassRecord->reason ?? null,
+            'created_at'    => $bypassRecord->created_at ?? null,
+        ]);
+    }
+
+    /**
+     * Attiva o disattiva il bypass globale per un utente specifico.
+     */
+    public function toggleBypass(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'user_id'   => 'required',
+            'user_type' => 'nullable|string|max:255',
+            'enabled'   => 'required|boolean',
+            'reason'    => 'nullable|string|max:255',
+        ]);
+
+        $userId = $validated['user_id'];
+        $userType = $validated['user_type'] ?? config('filterbymodel.user.model', 'App\Models\User');
+        $enabled = (bool) $validated['enabled'];
+        $reason = $validated['reason'] ?? null;
+
+        // Impedisci la disattivazione di un bypass hardcodato
+        $isHardcoded = in_array((int) $userId, (array) config('filterbymodel.users.super_user_ids', []), false);
+        if ($isHardcoded && !$enabled) {
+            return response()->json([
+                'message' => 'Impossibile disattivare il bypass: questo utente è definito come super-utente nella configurazione del sistema.',
+            ], 422);
         }
 
-        if (!$label) {
-            // Se presenti cognome e nome, combinali (es. "Rossi Mario")
-            $cognome = $getValue('cognome');
-            $nome = $getValue('nome');
-            if ($cognome && $nome) {
-                $label = "{$cognome} {$nome}";
-            } elseif ($cognome) {
-                $label = $cognome;
-            } elseif ($nome) {
-                $label = $nome;
-            }
+        if ($enabled) {
+            // Attiva il bypass
+            UserBypass::updateOrCreate(
+                ['user_type' => $userType, 'user_id' => $userId],
+                ['reason' => $reason]
+            );
+
+            return response()->json([
+                'message'     => 'Bypass globale attivato. L\'utente ha ora accesso illimitato a tutti i dati.',
+                'is_bypassed' => true,
+            ]);
+        } else {
+            // Disattiva il bypass
+            $bypassTable = config('filterbymodel.tables.filter_user_bypasses', 'filter_user_bypasses');
+            \Illuminate\Support\Facades\DB::table($bypassTable)
+                ->where('user_id', $userId)
+                ->where('user_type', $userType)
+                ->delete();
+
+            return response()->json([
+                'message'     => 'Bypass globale disattivato. L\'utente è ora soggetto ai filtri perimetrali.',
+                'is_bypassed' => false,
+            ]);
+        }
+    }
+
+    /**
+     * Restituisce l'elenco dei modelli utente disponibili (configurati nella sezione users.models).
+     */
+    public function availableUserModels(): JsonResponse
+    {
+        $modelsConfig = config('filterbymodel.users.models', []);
+
+        $result = [];
+        foreach ($modelsConfig as $class => $config) {
+            $result[] = [
+                'class' => $class,
+                'label' => $config['label'] ?? class_basename($class),
+            ];
         }
 
-        if (!$label) {
-            $displayFields = config('filterbymodel.user.display_fields', ['name', 'ragione_sociale', 'denominazione']);
-            foreach ($displayFields as $df) {
-                $val = $getValue($df);
-                if (!empty($val)) {
-                    $label = $val;
-                    break;
-                }
-            }
+        // Se nessun modello è configurato, restituisci il modello utente di default
+        if (empty($result)) {
+            $result[] = [
+                'class' => config('filterbymodel.user.model', 'App\Models\User'),
+                'label' => 'Utenti',
+            ];
         }
 
-        if (!$label) {
-            $label = $getValue('email') ?: "Utente #{$id}";
-        }
-
-        // 2. Risoluzione Email e Campi Secondari (sublabel)
-        $email = $getValue('email');
-        $sublabelParts = [];
-
-        if ($email && $email !== $label) {
-            $sublabelParts[] = $email;
-        }
-
-        $secondaryFields = config('filterbymodel.user.secondary_fields', ['username', 'matricola', 'codice_fiscale', 'ruolo']);
-        foreach ($secondaryFields as $sf) {
-            if ($sf === 'email') continue;
-            $val = $getValue($sf);
-            if (!empty($val) && $val !== $label) {
-                $sublabelParts[] = $val;
-            }
-        }
-
-        $sublabel = implode(' • ', $sublabelParts);
-        if (empty($sublabel)) {
-            $sublabel = "ID: {$id}";
-        }
-
-        return [
-            'id'       => $id,
-            'name'     => $label,
-            'label'    => $label,
-            'email'    => $email ?: '',
-            'sublabel' => $sublabel,
-        ];
+        return response()->json($result);
     }
 }
