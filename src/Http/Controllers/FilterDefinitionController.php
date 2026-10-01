@@ -67,6 +67,49 @@ class FilterDefinitionController extends Controller
     }
 
     /**
+     * Aggiorna una definizione di filtro esistente.
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $definition = FilterDefinition::findOrFail($id);
+
+        $validated = $request->validate([
+            'model_class'        => 'required|string|max:255',
+            'scope_filter'       => 'required|string|max:255',
+            'pivot_table'        => 'nullable|string|max:255',
+            'pivot_foreign_key'  => 'nullable|string|max:255',
+            'target_foreign_key' => 'nullable|string|max:255',
+            'filter_key'         => 'required|string|max:255',
+            'parent_column'      => 'nullable|string|max:255',
+            'additional_where'   => 'nullable',
+        ]);
+
+        if (isset($validated['additional_where']) && is_string($validated['additional_where'])) {
+            $decoded = json_decode($validated['additional_where'], true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $validated['additional_where'] = $decoded;
+            }
+        }
+
+        if (empty($validated['pivot_table'])) {
+            $validated['pivot_table'] = null;
+            $validated['pivot_foreign_key'] = null;
+            $validated['target_foreign_key'] = null;
+        }
+
+        if (empty($validated['parent_column'])) {
+            $validated['parent_column'] = null;
+        }
+
+        $definition->update($validated);
+
+        return response()->json([
+            'message' => 'Definizione di filtro aggiornata con successo.',
+            'data'    => $definition,
+        ]);
+    }
+
+    /**
      * Elimina una definizione di filtro.
      */
     public function destroy(int $id): JsonResponse

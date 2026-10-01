@@ -8,9 +8,9 @@
   
   <!-- CSS & Vue 3 Locali (Nessuna CDN esterna, Offline-Ready, Conforme GDPR) -->
   @if (file_exists(public_path('vendor/filterbymodel/css/filterbymodel.css')))
-    <link rel="stylesheet" href="{{ asset('vendor/filterbymodel/css/filterbymodel.css') }}">
+    <link rel="stylesheet" href="{{ asset('vendor/filterbymodel/css/filterbymodel.css') }}?v={{ @filemtime(public_path('vendor/filterbymodel/css/filterbymodel.css')) ?: time() }}">
   @else
-    <link rel="stylesheet" href="{{ route('filterbymodel.asset', ['path' => 'css/filterbymodel.css']) }}">
+    <link rel="stylesheet" href="{{ route('filterbymodel.asset', ['path' => 'css/filterbymodel.css']) }}?v={{ @filemtime(__DIR__ . '/../../public/css/filterbymodel.css') ?: time() }}">
   @endif
 
   @if (file_exists(public_path('vendor/filterbymodel/js/vue.global.prod.js')))

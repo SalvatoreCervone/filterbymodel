@@ -21,10 +21,18 @@ export const filterService = {
     },
 
     /**
-     * Salva (crea o aggiorna) una definizione di filtro.
+     * Salva (crea) una nuova definizione di filtro.
      */
     async saveFilterDefinition(payload) {
         const response = await axios.post('/api/filter-definitions', payload);
+        return response.data.data ? response.data.data : response.data;
+    },
+
+    /**
+     * Aggiorna una definizione di filtro esistente.
+     */
+    async updateFilterDefinition(id, payload) {
+        const response = await axios.put(`/api/filter-definitions/${id}`, payload);
         return response.data.data ? response.data.data : response.data;
     },
 

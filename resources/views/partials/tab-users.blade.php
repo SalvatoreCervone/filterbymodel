@@ -174,160 +174,33 @@
     </div>
   </div>
 
-  <!-- SEZIONE FILTRI UTENTE ATTIVI & AGGIUNTA NUOVO FILTRO -->
-  <div v-if="selectedUser" class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-    
-    <!-- OVERLAY BYPASS ATTIVO: Disattiva visivamente i filtri -->
-    <template v-if="userBypassStatus.is_bypassed">
-      <div class="lg:col-span-12 p-6 bg-amber-50 border-2 border-amber-200 rounded-2xl text-center">
-        <div class="flex items-center justify-center gap-2 text-amber-800 font-bold text-sm mb-1">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          Bypass Globale Attivo
-        </div>
-        <p class="text-xs text-amber-700">
-          Questo utente possiede l'accesso globale. I singoli filtri perimetrali sottostanti sono <strong>inattivi</strong> e non vengono applicati.<br>
-          Per gestire i filtri individuali, disattiva prima il bypass globale.
-        </p>
-      </div>
-    </template>
-
-    <!-- FORM AGGIUNTA FILTRO -->
-    <div v-if="!userBypassStatus.is_bypassed" class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
-      <div class="border-b border-slate-100 pb-3">
-        <h3 class="text-sm font-bold text-slate-900">Assegna Nuova Competenza</h3>
-        <p class="text-xs text-slate-500 mt-0.5">Definisci a quale elemento o ufficio ha accesso l'operatore.</p>
-      </div>
-
-      <form @submit.prevent="saveUserFilter" class="space-y-4">
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Criterio / Modello Competenza</label>
-          
-          <div v-if="definitions.length === 0" class="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs flex items-center gap-2">
-            <svg class="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-            <span>Nessuna regola configurata. Crea prima un'associazione nella scheda <strong>Regole Modelli</strong>.</span>
-          </div>
-
-          <select 
-            v-else
-            v-model="userForm.scope_filter" 
-            @change="onScopeFilterChange"
-            class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-semibold text-slate-800 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20"
-            required
-          >
-            <option value="">-- Seleziona Criterio (es. Ufficio, Sede, Qualifica...) --</option>
-            <option v-for="crit in availableCriteria" :key="crit.scope_filter" :value="crit.scope_filter">
-              @{{ crit.name }} (protegge: @{{ crit.target_models.join(', ') }})
-            </option>
-          </select>
-        </div>
-
-        <!-- AMBITO DI VALIDITÀ DELLA COMPETENZA (GLOBALE O MODELLO SPECIFICO) -->
-        <div v-if="userForm.scope_filter">
-          <label class="block text-xs font-bold text-slate-700 mb-1">Ambito di Validità</label>
-          <select 
-            v-model="userForm.target_model" 
-            class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-semibold text-slate-800 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 bg-slate-50/50"
-          >
-            <option value="">Tutte le schede collegate (Globale)</option>
-            <option v-for="m in currentScopeTargetModels" :key="m.class" :value="m.class">
-              Solo per @{{ m.name }}
-            </option>
-          </select>
-          <p class="text-[10px] text-slate-400 mt-1">Scegli se la competenza vale ovunque o solo per una specifica scheda.</p>
-        </div>
-
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="block text-xs font-bold text-slate-700">Elemento / Valore Autorizzato</label>
-            <div class="flex items-center gap-1.5">
-              <span v-if="isLoadingCriteriaItems" class="text-[10px] text-indigo-600 font-semibold animate-pulse">Ricerca nel database in corso...</span>
-              <span v-else class="text-[10px] text-slate-400 font-medium">(Primi 50 record - digita per cercare)</span>
-            </div>
-          </div>
-          <div class="relative">
-            <input 
-              v-model="userForm.filterable_id" 
-              @input="onCriteriaItemInput"
-              list="criteria-items-datalist"
-              type="text" 
-              placeholder="es. 1000 oppure digita il nome per cercare..."
-              class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20"
-              required
-            >
-            <datalist id="criteria-items-datalist">
-              <option v-for="item in criteriaItemsList" :key="item.id" :value="item.id">
-                @{{ item.display || (item.label ? 'ID ' + item.id + ' — ' + item.label : item.id) }}
-              </option>
-            </datalist>
-          </div>
-          <p class="text-[10px] text-slate-500 mt-1 leading-relaxed">
-            💡 <strong>Nota:</strong> Vengono mostrati inizialmente i primi 50 record. Digita qualsiasi <strong>ID (es. 1050)</strong> o <strong>Nome/Descrizione</strong> per effettuare la ricerca in tempo reale sul database.
-          </p>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">Gruppo Logico (AND)</label>
-            <input 
-              v-model.number="userForm.group" 
-              type="number" 
-              min="1"
-              class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20"
-              required
-            >
-            <p class="text-[10px] text-slate-400 mt-1">Stesso gruppo = OR. Gruppi diversi = AND.</p>
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">Includi Sotto-Nodi (Figli)</label>
-            <div class="mt-2 flex items-center gap-2">
-              <input 
-                v-model="userForm.include_children" 
-                type="checkbox" 
-                id="chk_children"
-                class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
-              >
-              <label for="chk_children" class="text-xs font-semibold text-slate-700 cursor-pointer">Abilita Albero</label>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="userForm.include_children">
-          <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Gerarchica (opzionale)</label>
-          <input 
-            v-model="userForm.parent_column" 
-            type="text" 
-            placeholder="es. padre_id (default automatico)"
-            class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600"
-          >
-        </div>
-
-        <button 
-          type="submit" 
-          class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer"
-        >
-          Assegna Competenza
-        </button>
-      </form>
+  <!-- BANNER BYPASS ATTIVO: Sempre a tutta larghezza se attivo -->
+  <div v-if="selectedUser && userBypassStatus.is_bypassed" class="w-full p-6 bg-amber-50 border-2 border-amber-200 rounded-2xl text-center shadow-xs">
+    <div class="flex items-center justify-center gap-2 text-amber-800 font-bold text-sm mb-1">
+      <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span class="font-extrabold">Bypass Globale Attivo</span>
     </div>
+    <p class="text-xs text-amber-700 max-w-2xl mx-auto leading-relaxed">
+      Questo utente possiede l'accesso globale. I singoli filtri perimetrali sottostanti sono <strong>inattivi</strong> e non vengono applicati.<br>
+      Per gestire i filtri individuali, disattiva prima il bypass globale tramite l'interruttore in alto.
+    </p>
+  </div>
 
-    <!-- LISTA FILTRI ATTIVI UTENTE -->
-    <div :class="userBypassStatus.is_bypassed ? 'lg:col-span-12' : 'lg:col-span-7'" class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+  <!-- SEZIONE FILTRI UTENTE ATTIVI -->
+  <div v-if="selectedUser" class="w-full space-y-6">
+
+    <!-- CASO 1: BYPASS ATTIVO -> Solo la lista a tutta larghezza (senza grid) -->
+    <div v-if="userBypassStatus.is_bypassed" class="w-full bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
       <div class="flex items-center justify-between border-b border-slate-100 pb-3">
         <h3 class="text-sm font-bold text-slate-900">Competenze Assegnate (@{{ currentUserFilters.length }})</h3>
         <span class="text-xs text-slate-500">Operatore: @{{ selectedUser.label || selectedUser.name || '#' + selectedUser.id }}</span>
       </div>
 
       <div v-if="currentUserFilters.length === 0" class="text-center py-10 text-xs text-slate-400">
-        <template v-if="userBypassStatus.is_bypassed">
-          Nessun filtro assegnato. L'utente ha il <strong>bypass globale attivo</strong> e accede a tutti i dati.
-        </template>
-        <template v-else>
-          Nessun filtro o vincolo assegnato a questo operatore.
-        </template>
+        Nessun filtro assegnato. L'utente ha il <strong>bypass globale attivo</strong> e accede a tutti i dati senza alcuna restrizione.
       </div>
 
-      <div v-else class="space-y-3" :class="{ 'opacity-40 pointer-events-none': userBypassStatus.is_bypassed }">
+      <div v-else class="space-y-3 opacity-60 pointer-events-none">
         <div 
           v-for="f in currentUserFilters" 
           :key="f.id"
@@ -382,17 +255,310 @@
               Include tutti i sotto-nodi gerarchici discendenti
             </div>
           </div>
-
-          <button 
-            @click="deleteUserFilter(f.id)"
-            class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-            title="Revoca competenza"
-            :disabled="userBypassStatus.is_bypassed"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-          </button>
         </div>
       </div>
+    </div>
+
+    <!-- CASO 2: BYPASS DISATTIVO -> Layout standard a 2 colonne (Form a sinistra + Lista a destra) -->
+    <div v-else class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      
+      <!-- FORM AGGIUNTA / MODIFICA FILTRO -->
+      <div 
+        class="lg:col-span-5 bg-white rounded-2xl border-2 transition-all duration-300 p-6 shadow-xs space-y-6"
+        :class="editingFilterId ? 'border-amber-400 ring-4 ring-amber-400/20 shadow-md' : 'border-slate-200'"
+      >
+        <!-- BANNER MODIFICA COMPETENZA ATTIVA -->
+        <div 
+          v-if="editingFilterId" 
+          class="p-3.5 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white rounded-xl shadow-xs flex items-center justify-between gap-3 animate-in fade-in duration-200"
+        >
+          <div class="flex items-center gap-2.5">
+            <div class="p-2 bg-white/20 rounded-lg flex-shrink-0">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </div>
+            <div>
+              <div class="text-[10px] font-black uppercase tracking-wider text-amber-100 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                Modalità Modifica Attiva
+              </div>
+              <div class="text-xs font-extrabold mt-0.5">
+                Modifica Competenza #@{{ editingFilterId }} (@{{ formatClassName(userForm.scope_filter) }})
+              </div>
+            </div>
+          </div>
+          <button 
+            type="button" 
+            @click="cancelEditFilter"
+            class="px-3 py-1.5 bg-white text-amber-900 hover:bg-amber-50 font-extrabold text-xs rounded-lg shadow-xs transition flex items-center gap-1 cursor-pointer flex-shrink-0"
+          >
+            <svg class="w-3.5 h-3.5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Annulla
+          </button>
+        </div>
+
+        <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-bold flex items-center gap-2" :class="editingFilterId ? 'text-amber-900' : 'text-slate-900'">
+              <span>@{{ editingFilterId ? 'Modifica Competenza #' + editingFilterId : 'Assegna Nuova Competenza' }}</span>
+              <span v-if="editingFilterId" class="px-2.5 py-0.5 bg-amber-500 text-white text-[10px] font-black uppercase tracking-wider rounded-full shadow-xs">
+                In Modifica
+              </span>
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">
+              @{{ editingFilterId ? 'Modifica i parametri nei campi sottostanti e salva per aggiornare la regola.' : 'Definisci a quale elemento o ufficio ha accesso l\'operatore.' }}
+            </p>
+          </div>
+          <button 
+            v-if="editingFilterId"
+            type="button"
+            @click="cancelEditFilter"
+            class="text-xs text-slate-500 hover:text-slate-800 font-semibold px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition"
+          >
+            Annulla
+          </button>
+        </div>
+
+        <form id="user-filter-form" @submit.prevent="saveUserFilter" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Criterio / Modello Competenza</label>
+            
+            <div v-if="definitions.length === 0" class="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs flex items-center gap-2">
+              <svg class="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              <span>Nessuna regola configurata. Crea prima un'associazione nella scheda <strong>Regole Modelli</strong>.</span>
+            </div>
+
+            <select 
+              v-else
+              v-model="userForm.scope_filter" 
+              @change="onScopeFilterChange"
+              class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-semibold text-slate-800 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20"
+              required
+            >
+              <option value="">-- Seleziona Criterio (es. Ufficio, Sede, Qualifica...) --</option>
+              <option v-for="crit in availableCriteria" :key="crit.scope_filter" :value="crit.scope_filter">
+                @{{ crit.name }}{{ crit.target_models && crit.target_models.length ? ' (protegge: ' + crit.target_models.join(', ') + ')' : '' }}
+              </option>
+              <option v-if="userForm.scope_filter && !availableCriteria.some(c => c.scope_filter === userForm.scope_filter)" :value="userForm.scope_filter">
+                @{{ formatClassName(userForm.scope_filter) }}
+              </option>
+            </select>
+          </div>
+
+          <!-- AMBITO DI VALIDITÀ DELLA COMPETENZA (GLOBALE O MODELLO SPECIFICO) -->
+          <div v-if="userForm.scope_filter">
+            <label class="block text-xs font-bold text-slate-700 mb-1">Ambito di Validità</label>
+            <select 
+              v-model="userForm.target_model" 
+              class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-semibold text-slate-800 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 bg-slate-50/50"
+            >
+              <option value="">Tutte le schede collegate (Globale)</option>
+              <option v-for="m in currentScopeTargetModels" :key="m.class" :value="m.class">
+                Solo per @{{ m.name }}
+              </option>
+            </select>
+            <p class="text-[10px] text-slate-400 mt-1">Scegli se la competenza vale ovunque o solo per una specifica scheda.</p>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-xs font-bold text-slate-700">Elemento / Valore Autorizzato</label>
+              <div class="flex items-center gap-1.5">
+                <span v-if="isLoadingCriteriaItems" class="text-[10px] text-indigo-600 font-semibold animate-pulse">Ricerca nel database in corso...</span>
+                <span v-else class="text-[10px] text-slate-400 font-medium">(Primi 50 record - digita per cercare)</span>
+              </div>
+            </div>
+            <div class="relative">
+              <input 
+                v-model="userForm.filterable_id" 
+                @input="onCriteriaItemInput"
+                list="criteria-items-datalist"
+                type="text" 
+                placeholder="es. 1000 oppure digita il nome per cercare..."
+                class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20"
+                required
+              >
+              <datalist id="criteria-items-datalist">
+                <option v-for="item in criteriaItemsList" :key="item.id" :value="item.id">
+                  @{{ item.display || (item.label ? 'ID ' + item.id + ' — ' + item.label : item.id) }}
+                </option>
+              </datalist>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-1 leading-relaxed">
+              💡 <strong>Nota:</strong> Vengono mostrati inizialmente i primi 50 record. Digita qualsiasi <strong>ID (es. 1050)</strong> o <strong>Nome/Descrizione</strong> per effettuare la ricerca in tempo reale sul database.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Gruppo Logico (AND)</label>
+              <input 
+                v-model.number="userForm.group" 
+                type="number" 
+                min="1"
+                class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20"
+                required
+              >
+              <p class="text-[10px] text-slate-400 mt-1">Stesso gruppo = OR. Gruppi diversi = AND.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Includi Sotto-Nodi (Figli)</label>
+              <div class="mt-2 flex items-center gap-2">
+                <input 
+                  v-model="userForm.include_children" 
+                  type="checkbox" 
+                  id="chk_children"
+                  class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                >
+                <label for="chk_children" class="text-xs font-semibold text-slate-700 cursor-pointer">Abilita Albero</label>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="userForm.include_children">
+            <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Gerarchica (opzionale)</label>
+            <input 
+              v-model="userForm.parent_column" 
+              type="text" 
+              placeholder="es. padre_id (default automatico)"
+              class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600"
+            >
+          </div>
+
+          <div v-if="editingFilterId" class="flex items-center gap-2 pt-1">
+            <button 
+              type="submit" 
+              class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              Salva Modifiche
+            </button>
+            <button 
+              type="button" 
+              @click="cancelEditFilter"
+              class="px-4 py-3 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
+            >
+              Annulla
+            </button>
+          </div>
+
+          <button 
+            v-else
+            type="submit" 
+            class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Assegna Competenza
+          </button>
+        </form>
+      </div>
+
+      <!-- LISTA FILTRI ATTIVI UTENTE -->
+      <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h3 class="text-sm font-bold text-slate-900">Competenze Assegnate (@{{ currentUserFilters.length }})</h3>
+          <span class="text-xs text-slate-500">Operatore: @{{ selectedUser.label || selectedUser.name || '#' + selectedUser.id }}</span>
+        </div>
+
+        <div v-if="currentUserFilters.length === 0" class="text-center py-10 text-xs text-slate-400">
+          Nessun filtro o vincolo assegnato a questo operatore.
+        </div>
+
+        <div v-else class="space-y-3">
+          <div 
+            v-for="f in currentUserFilters" 
+            :key="f.id"
+            class="p-4 rounded-xl border-2 transition-all flex items-center justify-between gap-4"
+            :class="editingFilterId === f.id 
+              ? 'border-amber-500 bg-amber-50/80 ring-4 ring-amber-400/20 shadow-md translate-x-1' 
+              : 'border-slate-200 bg-slate-50'"
+          >
+            <div class="space-y-1.5 text-xs">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-extrabold" :class="editingFilterId === f.id ? 'text-amber-900 font-black' : 'text-slate-900'">@{{ formatClassName(f.filterable_type) }}</span>
+                <span class="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded font-mono font-bold text-[11px]">ID: @{{ f.filterable_id }}</span>
+                <span class="px-2 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-bold">Gruppo @{{ f.group }}</span>
+
+                <!-- Badge Ambito Specifico / Globale -->
+                <span 
+                  v-if="f.target_model" 
+                  class="px-2 py-0.5 bg-amber-100 text-amber-800 border border-amber-200 rounded text-[10px] font-bold"
+                >
+                  Solo per @{{ formatClassName(f.target_model) }}
+                </span>
+                <span 
+                  v-else 
+                  class="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[10px] font-semibold"
+                >
+                  Globale
+                </span>
+
+                <!-- Badge In Modifica -->
+                <span 
+                  v-if="editingFilterId === f.id"
+                  class="px-2 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-black uppercase tracking-wider shadow-xs flex items-center gap-1"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                  In Modifica Ora
+                </span>
+              </div>
+
+              <!-- Modelli governati/protetti da questa competenza -->
+              <div class="flex items-center gap-1.5 flex-wrap text-[11px] text-slate-600">
+                <span class="text-slate-400 font-medium">Protegge:</span>
+                <span 
+                  v-if="f.target_model" 
+                  class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md font-semibold text-[10px]"
+                >
+                  @{{ formatClassName(f.target_model) }}
+                </span>
+                <template v-else>
+                  <span 
+                    v-for="m in getTargetModelsForScope(f.filterable_type)" 
+                    :key="m" 
+                    class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md font-semibold text-[10px]"
+                  >
+                    @{{ m }}
+                  </span>
+                  <span v-if="getTargetModelsForScope(f.filterable_type).length === 0" class="text-slate-400 italic text-[10px]">
+                    Nessuna scheda associata
+                  </span>
+                </template>
+              </div>
+
+              <div v-if="f.include_children" class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                Include tutti i sotto-nodi gerarchici discendenti
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1">
+              <!-- Bottone Modifica -->
+              <button 
+                @click="startEditFilter(f)"
+                class="p-2 rounded-lg transition cursor-pointer font-bold text-xs flex items-center gap-1"
+                :class="editingFilterId === f.id 
+                  ? 'text-white bg-amber-600 hover:bg-amber-700 shadow-xs' 
+                  : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'"
+                title="Modifica parametri competenza"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                <span v-if="editingFilterId === f.id">Modificando</span>
+              </button>
+
+              <!-- Bottone Elimina -->
+              <button 
+                @click="deleteUserFilter(f.id)"
+                class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                title="Revoca competenza"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   </div>

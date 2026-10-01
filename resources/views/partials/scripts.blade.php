@@ -339,6 +339,60 @@
         }
       };
 
+      const editingDefinitionId = ref(null);
+
+      const startEditDefinition = async (d) => {
+        editingDefinitionId.value = d.id;
+        form.model_class = d.model_class;
+        form.scope_filter = d.scope_filter;
+        form.has_pivot = !!d.pivot_table;
+        form.pivot_table = d.pivot_table || '';
+        form.pivot_foreign_key = d.pivot_foreign_key || '';
+        form.target_foreign_key = d.target_foreign_key || '';
+        form.filter_key = d.filter_key || '';
+        form.parent_column = d.parent_column || '';
+        
+        await loadModelColumns();
+
+        let where = d.additional_where;
+        if (typeof where === 'string') {
+          try { where = JSON.parse(where); } catch (e) { where = []; }
+        }
+        if (Array.isArray(where) && where.length > 0) {
+          conditions.value = where.map(w => ({
+            column: w.column || '',
+            operator: w.operator || '=',
+            value: w.value !== undefined ? String(w.value) : ''
+          }));
+          rawAdditionalWhere.value = JSON.stringify(conditions.value, null, 2);
+        } else {
+          conditions.value = [];
+          rawAdditionalWhere.value = '';
+        }
+        jsonError.value = false;
+
+        const el = document.getElementById('definition-form-card') || document.querySelector('form');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      };
+
+      const cancelEditDefinition = () => {
+        editingDefinitionId.value = null;
+        form.model_class = '';
+        form.scope_filter = '';
+        form.has_pivot = false;
+        form.pivot_table = '';
+        form.pivot_foreign_key = '';
+        form.target_foreign_key = '';
+        form.filter_key = '';
+        form.parent_column = '';
+        conditions.value = [];
+        rawAdditionalWhere.value = '';
+        availableColumns.value = [];
+        jsonError.value = false;
+      };
+
       const saveDefinition = async () => {
         if (conditionMode.value === 'raw') {
           syncRawJsonToConditions();
@@ -353,20 +407,32 @@
         isSubmitting.value = true;
         try {
           const validConditions = conditions.value.filter(c => c.column && c.column.trim());
-          await apiFetch('/filter-definitions', {
-            method: 'POST',
-            body: JSON.stringify({
-              model_class: form.model_class,
-              scope_filter: form.scope_filter,
-              pivot_table: form.has_pivot ? form.pivot_table : null,
-              pivot_foreign_key: form.has_pivot ? form.pivot_foreign_key : null,
-              target_foreign_key: form.has_pivot && form.target_foreign_key ? form.target_foreign_key : null,
-              filter_key: form.filter_key,
-              parent_column: form.parent_column ? form.parent_column : null,
-              additional_where: validConditions.length > 0 ? validConditions : null
-            })
-          });
-          showToast('Regola di visibilità salvata con successo!');
+          const payload = {
+            model_class: form.model_class,
+            scope_filter: form.scope_filter,
+            pivot_table: form.has_pivot ? form.pivot_table : null,
+            pivot_foreign_key: form.has_pivot ? form.pivot_foreign_key : null,
+            target_foreign_key: form.has_pivot && form.target_foreign_key ? form.target_foreign_key : null,
+            filter_key: form.filter_key,
+            parent_column: form.parent_column ? form.parent_column : null,
+            additional_where: validConditions.length > 0 ? validConditions : null
+          };
+
+          if (editingDefinitionId.value) {
+            await apiFetch(`/filter-definitions/${editingDefinitionId.value}`, {
+              method: 'PUT',
+              body: JSON.stringify(payload)
+            });
+            showToast('Regola di visibilità aggiornata con successo!');
+            cancelEditDefinition();
+          } else {
+            await apiFetch('/filter-definitions', {
+              method: 'POST',
+              body: JSON.stringify(payload)
+            });
+            showToast('Regola di visibilità salvata con successo!');
+            cancelEditDefinition();
+          }
           await loadDefinitions();
         } catch (e) {
           showToast(e.message, 'error');
@@ -380,6 +446,9 @@
         try {
           await apiFetch(`/filter-definitions/${id}`, { method: 'DELETE' });
           showToast('Regola eliminata con successo.');
+          if (editingDefinitionId.value === id) {
+            cancelEditDefinition();
+          }
           await loadDefinitions();
         } catch (e) {
           showToast(e.message, 'error');
@@ -612,6 +681,33 @@
         loadCriteriaItems(userForm.scope_filter);
       };
 
+      const editingFilterId = ref(null);
+
+      const startEditFilter = (filter) => {
+        editingFilterId.value = filter.id;
+        userForm.scope_filter = filter.filterable_type;
+        userForm.target_model = filter.target_model || '';
+        userForm.filterable_id = filter.filterable_id;
+        userForm.group = filter.group || 1;
+        userForm.include_children = !!filter.include_children;
+        userForm.parent_column = filter.parent_column || '';
+        loadCriteriaItems(filter.filterable_type, filter.filterable_id);
+        const formEl = document.getElementById('user-filter-form');
+        if (formEl) {
+          formEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      };
+
+      const cancelEditFilter = () => {
+        editingFilterId.value = null;
+        userForm.scope_filter = '';
+        userForm.target_model = '';
+        userForm.filterable_id = '';
+        userForm.group = 1;
+        userForm.include_children = false;
+        userForm.parent_column = '';
+      };
+
       const saveUserFilter = async () => {
         if (!selectedUser.value) return;
         if (!userForm.scope_filter || !userForm.filterable_id) {
@@ -619,8 +715,9 @@
           return;
         }
 
-        // Verifica duplicati lato client
+        // Verifica duplicati lato client (escludendo il filtro che stiamo modificando)
         const isDuplicate = currentUserFilters.value.some(f => 
+          f.id !== editingFilterId.value &&
           f.filterable_type === userForm.scope_filter &&
           String(f.filterable_id) === String(userForm.filterable_id) &&
           Number(f.group) === Number(userForm.group || 1) &&
@@ -634,19 +731,36 @@
         }
 
         try {
-          await apiFetch('/user-filters', {
-            method: 'POST',
-            body: JSON.stringify({
-              user_id: selectedUser.value.id,
-              filterable_type: userForm.scope_filter,
-              filterable_id: userForm.filterable_id,
-              target_model: userForm.target_model ? userForm.target_model : null,
-              group: userForm.group || 1,
-              include_children: userForm.include_children,
-              parent_column: userForm.parent_column ? userForm.parent_column : null
-            })
-          });
-          showToast('Competenza assegnata all\'operatore!');
+          if (editingFilterId.value) {
+            await apiFetch(`/user-filters/${editingFilterId.value}`, {
+              method: 'PUT',
+              body: JSON.stringify({
+                user_id: selectedUser.value.id,
+                filterable_type: userForm.scope_filter,
+                filterable_id: userForm.filterable_id,
+                target_model: userForm.target_model ? userForm.target_model : null,
+                group: userForm.group || 1,
+                include_children: userForm.include_children,
+                parent_column: userForm.parent_column ? userForm.parent_column : null
+              })
+            });
+            showToast('Competenza aggiornata con successo!');
+            editingFilterId.value = null;
+          } else {
+            await apiFetch('/user-filters', {
+              method: 'POST',
+              body: JSON.stringify({
+                user_id: selectedUser.value.id,
+                filterable_type: userForm.scope_filter,
+                filterable_id: userForm.filterable_id,
+                target_model: userForm.target_model ? userForm.target_model : null,
+                group: userForm.group || 1,
+                include_children: userForm.include_children,
+                parent_column: userForm.parent_column ? userForm.parent_column : null
+              })
+            });
+            showToast('Competenza assegnata all\'operatore!');
+          }
           userForm.filterable_id = '';
           await loadUserFilters(selectedUser.value.id);
         } catch (e) {
@@ -659,6 +773,9 @@
         try {
           await apiFetch(`/user-filters/${id}`, { method: 'DELETE' });
           showToast('Competenza revocata.');
+          if (editingFilterId.value === id) {
+            cancelEditFilter();
+          }
           if (selectedUser.value) await loadUserFilters(selectedUser.value.id);
         } catch (e) {
           showToast(e.message, 'error');
@@ -793,6 +910,9 @@
         loadDefinitions,
         saveDefinition,
         deleteDefinition,
+        editingDefinitionId,
+        startEditDefinition,
+        cancelEditDefinition,
         userSearchQuery,
         userSearchResults,
         isUserDropdownOpen,
@@ -804,6 +924,9 @@
         selectUser,
         saveUserFilter,
         deleteUserFilter,
+        editingFilterId,
+        startEditFilter,
+        cancelEditFilter,
         isCloneModalOpen,
         cloneTargetUserIds,
         cloneMode,

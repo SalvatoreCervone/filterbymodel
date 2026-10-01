@@ -5,6 +5,9 @@ Package Laravel per la **sicurezza perimetrale** e il **filtraggio dati a livell
 ## Funzionalità
 
 - **Protezione Automatica Zero-Code**: Protegge automaticamente tutti i modelli con regole definite senza richiedere di modificare il codice sorgente o inserire Trait.
+- **Bypass Globale & Architettura Fail-Closed**: Gestione granulare dell'accesso totale per singoli operatori (es. SuperAdmin, Auditor) tramite flag/tabella polimorfica `filter_user_bypasses` o ID statici, con default `fail-closed` (`WHERE 1 = 0`) per utenti senza permessi configurati.
+- **Modifica Rapida Parametri di Competenza**: Possibilità di modificare al volo i parametri di una competenza già assegnata (criterio, ambito, valore ID, gruppo, gerarchia) ricaricandoli nel pannello di configurazione con controllo anti-duplicati intelligente.
+- **Supporto Multi-Modello Utente & Display Composto**: Configurazione flessibile di modelli utente multipli per la ricerca e l'assegnazione, con concatenazione personalizzabile dei campi di visualizzazione (es. `['cognome', 'nome']`).
 - **Scoping Granulare per Modello Target**: Possibilità di applicare una competenza utente a livello globale (su tutti i modelli che usano quel criterio) oppure circoscriverla selettivamente solo a specifici modelli target (es. solo per `Anagrafica` o `Contratto`).
 - **Visual Rule Builder & Introspezione Colonne**: Interfaccia a righe intuitiva con autocompletamento in tempo reale delle colonne dello Schema Database (`/api/model-columns`).
 - **Suggerimento Valori (`DISTINCT`) & Segnaposto Dinamici**: Campionamento protetto dei valori reali a database (`/api/column-values`) con supporto per segnaposto dinamici (`@auth_id`, `@current_year`, `@today`, `@null`).
@@ -113,15 +116,43 @@ return [
         ],
     ],
 
-    // Configurazione collegamento utente
-    'user' => [
-        'model'       => env('FILTERBYMODEL_USER_MODEL', 'App\Models\User'),
-        'foreign_key' => 'user_id',
+    /*
+    |--------------------------------------------------------------------------
+    | Modelli Utente e Ricerca (Multi-Modello)
+    |--------------------------------------------------------------------------
+    | Modelli interrogabili dalla Dashboard per assegnare filtri o bypass globale.
+    | Puoi definire più modelli (es. User, Admin) con concatenazione personalizzata
+    | dei campi per l'etichetta (es. ['cognome', 'nome'] o ['matricola', 'name']).
+    */
+    'users' => [
+        'models' => [
+            'App\Models\User' => [
+                'label'       => 'Utenti',
+                'table'       => 'users',
+                'foreign_key' => 'user_id',
+                'primary_key' => 'id',
+                'display'     => ['cognome', 'nome'], // Array di campi concatenati
+                'separator'   => ' ',
+                'subtext'     => ['email'],
+                'searchable'  => ['name', 'cognome', 'nome', 'email', 'matricola'],
+            ],
+        ],
+
+        // ID di super-utenti con bypass permanente hardcodato (bootstrap / CLI)
+        'super_user_ids' => [],
     ],
 
     // Risoluzione gerarchica ad albero
     'hierarchy' => [
         'parent_column' => 'padre_id',
+    ],
+
+    // Sicurezza e Architettura Fail-Closed
+    'security' => [
+        'auto_apply_to_all_models' => env('FILTERBYMODEL_AUTO_APPLY', true),
+        // 'deny' = Fail-Closed (WHERE 1 = 0) per utenti non configurati (CONSIGLIATO)
+        // 'allow' = Fail-Open (accesso completo)
+        'unassigned_behavior' => env('FILTERBYMODEL_UNASSIGNED_BEHAVIOR', 'deny'),
     ],
 
     // Introspezione e Suggerimento Valori (Visual Rule Builder)
@@ -232,12 +263,16 @@ Le seguenti rotte REST sono esposte automaticamente se `routes.api.enabled` è `
 | `GET`    | `/api/model-columns`             | Introspezione colonne schema DB per un modello o pivot     |
 | `GET`    | `/api/column-values`             | Valori univoci campionati (DISTINCT) o ricerca live        |
 | `GET`    | `/api/search-users`              | Ricerca operatori/utenti per autocomplete                  |
+| `GET`    | `/api/user-models`               | Lista dei modelli utente configurati per la dashboard      |
 | `GET`    | `/api/criteria-items`            | Elementi e descrizioni reali per modelli di competenza     |
 | `GET`    | `/api/user-filters-summary`      | Resoconto globale di tutti gli utenti e permessi bindati   |
 | `GET`    | `/api/user-filters?user_id={id}` | Filtri attivi per un determinato utente                    |
 | `POST`   | `/api/user-filters`              | Assegna un filtro a un utente                              |
-| `POST`   | `/api/user-filters/copy`         | Clona i filtri da un utente sorgente a 1 o più destinatari |
+| `PUT`    | `/api/user-filters/{id}`         | Aggiorna un filtro utente esistente                        |
 | `DELETE` | `/api/user-filters/{id}`         | Rimuove un filtro utente                                   |
+| `POST`   | `/api/user-filters/copy`         | Clona i filtri da un utente sorgente a 1 o più destinatari |
+| `GET`    | `/api/bypass/status`             | Verifica lo stato di bypass globale per un operatore       |
+| `POST`   | `/api/bypass/toggle`             | Attiva o disattiva il flag di bypass globale per un utente |
 
 ---
 

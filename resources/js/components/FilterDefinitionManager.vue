@@ -24,14 +24,69 @@
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         <!-- COLONNA SINISTRA: PROCEDURA GUIDATA INTUITIVA E A COLORI -->
-        <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-7">
-          
+        <div 
+          id="definition-form-card" 
+          class="lg:col-span-7 bg-white rounded-2xl border-2 transition-all duration-300 shadow-sm p-6 sm:p-8 space-y-7"
+          :class="editingDefinitionId ? 'border-amber-400 ring-4 ring-amber-400/20 shadow-md' : 'border-slate-200'"
+        >
+          <!-- BANNER NOTIFICA MODIFICA ATTIVA (IMMEDIATAMENTE VISIBILE) -->
+          <div 
+            v-if="editingDefinitionId" 
+            class="p-4 bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white rounded-2xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-200"
+          >
+            <div class="flex items-center gap-3">
+              <div class="p-2.5 bg-white/20 backdrop-blur-xs rounded-xl flex-shrink-0">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </div>
+              <div>
+                <div class="text-[11px] font-black uppercase tracking-wider text-amber-100 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                  Modalità Modifica Attiva
+                </div>
+                <div class="text-sm font-extrabold flex items-center gap-1.5 mt-0.5">
+                  <span>Stai modificando:</span>
+                  <span class="bg-white/20 px-2 py-0.5 rounded font-mono">{{ formatClassName(form.model_class) || 'Modello' }}</span>
+                  <span>➜</span>
+                  <span class="bg-white/20 px-2 py-0.5 rounded font-mono">{{ formatClassName(form.scope_filter) || 'Criterio' }}</span>
+                </div>
+              </div>
+            </div>
+            
+            <button 
+              type="button" 
+              @click="cancelEditDefinition"
+              class="w-full sm:w-auto px-4 py-2 bg-white text-amber-900 hover:bg-amber-50 font-extrabold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer flex-shrink-0"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              Annulla Modifica
+            </button>
+          </div>
+
           <div class="border-b border-slate-100 pb-4 flex items-center justify-between">
             <div>
-              <h2 class="text-lg font-bold text-slate-900">Configurazione Nuova Regola</h2>
-              <p class="text-xs text-slate-500 mt-0.5">Segui i 3 passi guidati: i colori e lo schema ti mostrano esattamente come vengono collegati i dati.</p>
+              <div class="flex items-center gap-2">
+                <h2 class="text-lg font-bold" :class="editingDefinitionId ? 'text-amber-900' : 'text-slate-900'">
+                  {{ editingDefinitionId ? 'Modifica Regola: ' + (formatClassName(form.model_class) || 'Modello') : 'Configurazione Nuova Regola' }}
+                </h2>
+                <span v-if="editingDefinitionId" class="px-2.5 py-0.5 bg-amber-500 text-white text-[10px] font-black uppercase tracking-wider rounded-full shadow-xs">
+                  In Modifica
+                </span>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">
+                {{ editingDefinitionId ? 'Modifica i campi per aggiornare la regola di sicurezza.' : 'Segui i 3 passi guidati: i colori e lo schema ti mostrano esattamente come vengono collegati i dati.' }}
+              </p>
             </div>
-            <span class="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100">
+            <button 
+              v-if="editingDefinitionId"
+              type="button" 
+              @click="cancelEditDefinition"
+              class="text-xs font-bold text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition"
+            >
+              Annulla Modifica
+            </button>
+            <span v-else class="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100">
               Guida Visiva
             </span>
           </div>
@@ -70,6 +125,9 @@
                 <option value="">-- Seleziona la Scheda da Proteggere --</option>
                 <option v-for="m in availableModels" :key="m.class" :value="m.class">
                   {{ m.name }} ({{ m.class }})
+                </option>
+                <option v-if="form.model_class && !availableModels.some(m => m.class === form.model_class)" :value="form.model_class">
+                  {{ formatClassName(form.model_class) }} ({{ form.model_class }})
                 </option>
               </select>
 
@@ -120,6 +178,9 @@
                 <option value="">-- Seleziona il Criterio (es. Ufficio, Sede, Ruolo...) --</option>
                 <option v-for="m in availableModels" :key="m.class" :value="m.class">
                   {{ m.name }} ({{ m.class }})
+                </option>
+                <option v-if="form.scope_filter && !availableModels.some(m => m.class === form.scope_filter)" :value="form.scope_filter">
+                  {{ formatClassName(form.scope_filter) }} ({{ form.scope_filter }})
                 </option>
               </select>
             </div>
@@ -467,7 +528,24 @@
             </div>
 
             <!-- PULSANTE SALVATAGGIO -->
+            <div v-if="editingDefinitionId" class="flex items-center gap-3">
+              <button 
+                type="submit" 
+                class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl p-4 text-sm shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                <span>Salva Modifiche alla Regola</span>
+              </button>
+              <button 
+                type="button" 
+                @click="cancelEditDefinition"
+                class="px-5 py-4 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-sm rounded-2xl shadow-xs transition"
+              >
+                Annulla
+              </button>
+            </div>
             <button 
+              v-else
               type="submit" 
               class="w-full bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold rounded-2xl p-4 text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2"
             >
@@ -496,7 +574,14 @@
             </div>
 
             <div v-else class="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
-              <div v-for="def in definitions" :key="def.id" class="p-4 hover:bg-slate-50 transition space-y-2.5">
+              <div 
+                v-for="def in definitions" 
+                :key="def.id" 
+                class="p-4 transition space-y-2.5 rounded-xl border-2 mb-2"
+                :class="editingDefinitionId === def.id 
+                  ? 'border-amber-500 bg-amber-50/80 ring-4 ring-amber-400/20 shadow-md' 
+                  : 'border-slate-100 hover:bg-slate-50'"
+              >
                 <div class="flex items-start justify-between gap-2">
                   <div class="space-y-1">
                     <div class="text-sm font-bold text-slate-900 flex items-center gap-2 flex-wrap">
@@ -507,14 +592,30 @@
                       <span v-else class="px-2 py-0.5 text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md">
                         Collegamento Diretto
                       </span>
+                      <span v-if="editingDefinitionId === def.id" class="px-2 py-0.5 bg-amber-500 text-white rounded-full text-[10px] font-black uppercase tracking-wider shadow-xs flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                        In Modifica Ora
+                      </span>
                     </div>
                     <p class="text-xs text-slate-600">
                       Filtrato per: <strong class="text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-bold">{{ formatClassName(def.scope_filter) }}</strong>
                     </p>
                   </div>
-                  <button @click="deleteDefinition(def.id)" class="text-xs text-rose-600 hover:text-rose-700 font-medium bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg transition">
-                    Rimuovi
-                  </button>
+                  <div class="flex items-center gap-1.5">
+                    <button 
+                      @click="startEditDefinition(def)" 
+                      class="text-xs font-medium px-2.5 py-1 rounded-lg transition flex items-center gap-1"
+                      :class="editingDefinitionId === def.id 
+                        ? 'text-white bg-amber-600 hover:bg-amber-700 shadow-xs' 
+                        : 'text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100'"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                      <span>{{ editingDefinitionId === def.id ? 'Modificando' : 'Modifica' }}</span>
+                    </button>
+                    <button @click="deleteDefinition(def.id)" class="text-xs text-rose-600 hover:text-rose-700 font-medium bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg transition">
+                      Rimuovi
+                    </button>
+                  </div>
                 </div>
 
                 <div class="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-1 font-sans">
@@ -776,6 +877,39 @@ const fetchData = async () => {
   }
 };
 
+const editingDefinitionId = ref(null);
+
+const startEditDefinition = (def) => {
+  editingDefinitionId.value = def.id;
+  form.model_class = def.model_class;
+  form.scope_filter = def.scope_filter;
+  form.has_pivot = !!def.pivot_table;
+  form.pivot_table = def.pivot_table || '';
+  form.pivot_foreign_key = def.pivot_foreign_key || '';
+  form.target_foreign_key = def.target_foreign_key || '';
+  form.filter_key = def.filter_key || '';
+  form.parent_column = def.parent_column || '';
+  form.additional_where = def.additional_where || null;
+  rawAdditionalWhere.value = def.additional_where 
+    ? (typeof def.additional_where === 'string' ? def.additional_where : JSON.stringify(def.additional_where)) 
+    : '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+const cancelEditDefinition = () => {
+  editingDefinitionId.value = null;
+  form.model_class = '';
+  form.scope_filter = '';
+  form.has_pivot = false;
+  form.pivot_table = '';
+  form.pivot_foreign_key = '';
+  form.target_foreign_key = '';
+  form.filter_key = '';
+  form.parent_column = '';
+  form.additional_where = null;
+  rawAdditionalWhere.value = '';
+};
+
 const handleSubmit = async () => {
   validateJson();
   if (jsonError.value) return;
@@ -793,20 +927,18 @@ const handleSubmit = async () => {
       additional_where: form.additional_where
     };
 
-    const savedData = await filterService.saveFilterDefinition(payload);
-    definitions.value.push(savedData);
-    
-    // Reset dello stato del form
-    form.model_class = '';
-    form.scope_filter = '';
-    form.has_pivot = false;
-    form.pivot_table = '';
-    form.pivot_foreign_key = '';
-    form.target_foreign_key = '';
-    form.filter_key = '';
-    form.parent_column = '';
-    form.additional_where = null;
-    rawAdditionalWhere.value = '';
+    if (editingDefinitionId.value) {
+      const updated = await filterService.updateFilterDefinition(editingDefinitionId.value, payload);
+      const idx = definitions.value.findIndex(d => d.id === editingDefinitionId.value);
+      if (idx !== -1) {
+        definitions.value[idx] = updated;
+      }
+      cancelEditDefinition();
+    } else {
+      const savedData = await filterService.saveFilterDefinition(payload);
+      definitions.value.push(savedData);
+      cancelEditDefinition();
+    }
   } catch (err) {
     alert("Errore durante il salvataggio della regola di visibilità.");
   }
@@ -817,6 +949,9 @@ const deleteDefinition = async (id) => {
     try {
       await filterService.deleteFilterDefinition(id);
       definitions.value = definitions.value.filter(d => d.id !== id);
+      if (editingDefinitionId.value === id) {
+        cancelEditDefinition();
+      }
     } catch (err) {
       alert("Errore durante la rimozione della regola.");
     }

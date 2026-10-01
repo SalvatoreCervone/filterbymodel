@@ -19,6 +19,7 @@ use SalvatoreCervone\FilterByModel\Http\Controllers\UserFilterController;
 // --- Definizioni di Filtro (Admin) ---
 Route::get('/filter-definitions', [FilterDefinitionController::class, 'index']);
 Route::post('/filter-definitions', [FilterDefinitionController::class, 'store']);
+Route::put('/filter-definitions/{id}', [FilterDefinitionController::class, 'update']);
 Route::delete('/filter-definitions/{id}', [FilterDefinitionController::class, 'destroy']);
 
 // --- Modelli Disponibili & Introspezione Colonne & Valori ---
