@@ -336,7 +336,7 @@
             >
               <option value="">-- Seleziona Criterio (es. Ufficio, Sede, Qualifica...) --</option>
               <option v-for="crit in availableCriteria" :key="crit.scope_filter" :value="crit.scope_filter">
-                @{{ crit.name }}{{ crit.target_models && crit.target_models.length ? ' (protegge: ' + crit.target_models.join(', ') + ')' : '' }}
+                @{{ crit.name + (crit.target_models && crit.target_models.length ? ' (protegge: ' + crit.target_models.join(', ') + ')' : '') }}
               </option>
               <option v-if="userForm.scope_filter && !availableCriteria.some(c => c.scope_filter === userForm.scope_filter)" :value="userForm.scope_filter">
                 @{{ formatClassName(userForm.scope_filter) }}
