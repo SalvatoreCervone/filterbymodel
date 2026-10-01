@@ -1,13 +1,30 @@
 <template>
-  <div class="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+  <div class="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-sm space-y-4" id="user-filter-form">
     <div class="flex items-center justify-between border-b border-slate-100 pb-3">
       <div>
-        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Aggiungi Parametro di Competenza</h3>
-        <p class="text-xs text-slate-500 mt-0.5">Assegna un nuovo vincolo di visibilità all'operatore selezionato.</p>
+        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+          <span>{{ editingFilter ? 'Modifica Parametro di Competenza #' + editingFilter.id : 'Aggiungi Parametro di Competenza' }}</span>
+          <span v-if="editingFilter" class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-200">
+            In Modifica
+          </span>
+        </h3>
+        <p class="text-xs text-slate-500 mt-0.5">
+          {{ editingFilter ? 'Modifica i parametri nei campi sottostanti e salva per aggiornare la regola.' : 'Assegna un nuovo vincolo di visibilità all\'operatore selezionato.' }}
+        </p>
       </div>
-      <span class="text-xs bg-indigo-50 text-indigo-700 font-semibold px-2.5 py-1 rounded-lg border border-indigo-100">
-        Nuovo Filtro
-      </span>
+      <div class="flex items-center gap-2">
+        <button 
+          v-if="editingFilter"
+          type="button" 
+          @click="handleCancel"
+          class="text-xs text-slate-600 hover:text-slate-900 font-semibold px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 transition cursor-pointer"
+        >
+          Annulla
+        </button>
+        <span v-else class="text-xs bg-indigo-50 text-indigo-700 font-semibold px-2.5 py-1 rounded-lg border border-indigo-100">
+          Nuovo Filtro
+        </span>
+      </div>
     </div>
 
     <form @submit.prevent="handleSubmit" class="space-y-4">
@@ -20,13 +37,16 @@
           </label>
           <select 
             v-model="form.filterable_type" 
-            @change="form.target_model = ''"
+            @change="onScopeChange"
             class="w-full border border-slate-300 rounded-xl p-2.5 bg-slate-50/70 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition" 
             required
           >
             <option value="">-- Seleziona Criterio --</option>
             <option v-for="crit in availableCriteria" :key="crit.scope_filter" :value="crit.scope_filter">
-              {{ crit.name }} (protegge: {{ crit.target_models.join(', ') }})
+              {{ crit.name }}{{ crit.target_models.length ? ' (protegge: ' + crit.target_models.join(', ') + ')' : '' }}
+            </option>
+            <option v-if="form.filterable_type && !availableCriteria.some(c => c.scope_filter === form.filterable_type)" :value="form.filterable_type">
+              {{ formatClassName(form.filterable_type) }}
             </option>
           </select>
           <p class="text-[10px] text-slate-400">Determina su quale entità viene applicata la restrizione.</p>
@@ -77,11 +97,29 @@
           />
         </div>
 
-        <!-- 4. Pulsante Salva -->
+        <!-- 4. Pulsante Salva / Aggiorna -->
         <div class="sm:col-span-2 sm:pt-6">
+          <div v-if="editingFilter" class="flex items-center gap-1.5">
+            <button 
+              type="submit" 
+              class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl p-2.5 text-xs sm:text-sm shadow transition duration-150 flex items-center justify-center gap-1 cursor-pointer"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              <span>Salva</span>
+            </button>
+            <button 
+              type="button" 
+              @click="handleCancel"
+              class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl p-2.5 text-xs sm:text-sm transition cursor-pointer"
+              title="Annulla modifica"
+            >
+              ✕
+            </button>
+          </div>
           <button 
+            v-else
             type="submit" 
-            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl p-2.5 text-xs sm:text-sm shadow transition duration-150 flex items-center justify-center gap-1.5"
+            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl p-2.5 text-xs sm:text-sm shadow transition duration-150 flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             <span>Aggiungi</span>
@@ -145,10 +183,14 @@ const props = defineProps({
   selectedUserId: { 
     type: [Number, String], 
     required: true 
+  },
+  editingFilter: {
+    type: Object,
+    default: null
   }
 });
 
-const emit = defineEmits(['filter-created']);
+const emit = defineEmits(['filter-created', 'filter-updated', 'cancel-edit']);
 
 const form = reactive({ 
   user_id: props.selectedUserId, 
@@ -193,12 +235,62 @@ const availableCriteria = computed(() => {
       map[def.scope_filter].parent_column = def.parent_column;
     }
   });
+
+  // Salvaguardia: se il filtro in modifica ha un criterio non presente nelle definizioni attive
+  if (props.editingFilter && props.editingFilter.filterable_type && !map[props.editingFilter.filterable_type]) {
+    map[props.editingFilter.filterable_type] = {
+      scope_filter: props.editingFilter.filterable_type,
+      name: formatClassName(props.editingFilter.filterable_type),
+      target_models: [],
+      parent_column: props.editingFilter.parent_column || null
+    };
+  }
+
   return Object.values(map);
 });
+
+const resetForm = () => {
+  form.filterable_type = '';
+  form.target_model = '';
+  form.filterable_id = '';
+  form.group = 1;
+  form.include_children = false;
+  form.parent_column = '';
+};
+
+const onScopeChange = () => {
+  if (!currentScopeTargetModels.value.some(m => m.class === form.target_model)) {
+    form.target_model = '';
+  }
+  const crit = availableCriteria.value.find(c => c.scope_filter === form.filterable_type);
+  if (crit && crit.parent_column && !form.parent_column) {
+    form.parent_column = crit.parent_column;
+  }
+};
+
+const handleCancel = () => {
+  resetForm();
+  emit('cancel-edit');
+};
 
 // Aggiorna l'user_id non appena cambia la prop
 watch(() => props.selectedUserId, (newId) => {
   form.user_id = newId;
+  resetForm();
+}, { immediate: true });
+
+// Popola il form quando viene passato un filtro da modificare
+watch(() => props.editingFilter, (newFilter) => {
+  if (newFilter) {
+    form.filterable_type = newFilter.filterable_type || '';
+    form.target_model = newFilter.target_model || '';
+    form.filterable_id = newFilter.filterable_id !== undefined && newFilter.filterable_id !== null ? String(newFilter.filterable_id) : '';
+    form.group = newFilter.group !== undefined ? Number(newFilter.group) : 1;
+    form.include_children = Boolean(newFilter.include_children);
+    form.parent_column = newFilter.parent_column || '';
+  } else {
+    resetForm();
+  }
 }, { immediate: true });
 
 const formatClassName = (fullClass) => {
@@ -210,12 +302,15 @@ const handleSubmit = async () => {
   try {
     form.user_id = props.selectedUserId;
 
-    await filterService.createUserFilter(form);
-    
-    // Reset del form
-    form.filterable_id = '';
-    form.include_children = false;
-    emit('filter-created');
+    if (props.editingFilter) {
+      await filterService.updateUserFilter(props.editingFilter.id, form);
+      resetForm();
+      emit('filter-updated');
+    } else {
+      await filterService.createUserFilter(form);
+      resetForm();
+      emit('filter-created');
+    }
   } catch (err) {
     const errorMsg = err.response?.data?.message || err.message || "Errore durante il salvataggio del filtro.";
     alert(errorMsg);

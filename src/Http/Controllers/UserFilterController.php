@@ -75,6 +75,56 @@ class UserFilterController extends Controller
     }
 
     /**
+     * Aggiorna un filtro utente esistente.
+     */
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $userFk = config('filterbymodel.user.foreign_key', 'user_id');
+
+        $validated = $request->validate([
+            $userFk            => 'required',
+            'filterable_type'  => 'required|string|max:255',
+            'filterable_id'    => 'required',
+            'target_model'     => 'nullable|string|max:255',
+            'include_children' => 'sometimes|boolean',
+            'parent_column'    => 'nullable|string|max:255',
+            'group'            => 'required|integer|min:1',
+        ]);
+
+        $filter = UserFilter::findOrFail($id);
+
+        $targetModel = !empty($validated['target_model']) ? $validated['target_model'] : null;
+        $validated['target_model'] = $targetModel;
+
+        // Verifica duplicati escludendo il record corrente
+        $query = UserFilter::where($userFk, $validated[$userFk])
+            ->where('filterable_type', $validated['filterable_type'])
+            ->where('filterable_id', $validated['filterable_id'])
+            ->where('group', $validated['group'])
+            ->where('id', '!=', $id);
+
+        if ($targetModel !== null) {
+            $query->where('target_model', $targetModel);
+        } else {
+            $query->whereNull('target_model');
+        }
+
+        if ($query->exists()) {
+            $targetLabel = $targetModel ? 'per la scheda ' . class_basename($targetModel) : 'a livello globale';
+            return response()->json([
+                'message' => "Un'altra competenza identica è già stata assegnata all'operatore {$targetLabel} per il Gruppo {$validated['group']}.",
+            ], 422);
+        }
+
+        $filter->update($validated);
+
+        return response()->json([
+            'data' => $filter,
+            'message' => 'Competenza aggiornata con successo.',
+        ]);
+    }
+
+    /**
      * Rimuove un filtro utente.
      */
     public function destroy(int $id): JsonResponse

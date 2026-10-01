@@ -142,14 +142,19 @@
         <FilterList 
           :filters="userFilters" 
           :loading="loadingList" 
+          :editing-filter-id="editingFilter?.id"
           @filter-deleted="handleDeleted" 
+          @filter-edit="handleStartEdit"
         />
 
-        <!-- Form per aggiungere nuovi vincoli/filtri -->
+        <!-- Form per aggiungere/modificare vincoli e filtri -->
         <FilterForm 
           :definitions="resolvedDefinitions" 
           :selected-user-id="selectedUserId"
+          :editing-filter="editingFilter"
           @filter-created="fetchUserFilters" 
+          @filter-updated="handleFilterUpdated"
+          @cancel-edit="editingFilter = null"
         />
       </div>
 
@@ -237,6 +242,7 @@ const emit = defineEmits(['user-selected', 'filters-cloned']);
 const activeView = ref('manager'); // 'manager' (configurazione) o 'summary' (resoconto)
 const selectedUserId = ref(null);
 const userFilters = ref([]);
+const editingFilter = ref(null);
 const loadingList = ref(false);
 const fetchedDefinitions = ref([]);
 const isCopyModalOpen = ref(false);
@@ -257,6 +263,7 @@ const handleUserSelected = async (userOrId) => {
     : (userOrId || null);
 
   selectedUserId.value = id;
+  editingFilter.value = null;
   notification.value = '';
   // Emette rigorosamente il solo ID verso il genitore
   emit('user-selected', id);
@@ -278,6 +285,24 @@ const handleCloneFromSummary = async (user) => {
   isCopyModalOpen.value = true;
 };
 
+const handleStartEdit = (filter) => {
+  editingFilter.value = filter;
+  // Scroll form into view if needed
+  const formEl = document.getElementById('user-filter-form');
+  if (formEl) {
+    formEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+};
+
+const handleFilterUpdated = async () => {
+  editingFilter.value = null;
+  notification.value = 'Filtro di competenza aggiornato con successo!';
+  await fetchUserFilters();
+  if (summaryTableRef.value && typeof summaryTableRef.value.fetchSummary === 'function') {
+    summaryTableRef.value.fetchSummary();
+  }
+};
+
 const fetchUserFilters = async () => {
   if (!selectedUserId.value) return;
   
@@ -292,6 +317,9 @@ const fetchUserFilters = async () => {
 };
 
 const handleDeleted = (deletedId) => {
+  if (editingFilter.value?.id === deletedId) {
+    editingFilter.value = null;
+  }
   userFilters.value = userFilters.value.filter(f => f.id !== deletedId);
   if (summaryTableRef.value && typeof summaryTableRef.value.fetchSummary === 'function') {
     summaryTableRef.value.fetchSummary();

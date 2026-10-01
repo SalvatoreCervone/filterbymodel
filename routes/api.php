@@ -32,6 +32,7 @@ Route::get('/criteria-items', [UserFilterController::class, 'criteriaItems']);
 Route::get('/user-filters-summary', [UserFilterController::class, 'summary']);
 Route::get('/user-filters', [UserFilterController::class, 'index']);
 Route::post('/user-filters', [UserFilterController::class, 'store']);
+Route::put('/user-filters/{id}', [UserFilterController::class, 'update']);
 Route::post('/user-filters/copy', [UserFilterController::class, 'copy']);
 Route::delete('/user-filters/{id}', [UserFilterController::class, 'destroy']);
 

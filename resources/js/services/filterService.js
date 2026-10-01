@@ -86,6 +86,14 @@ export const filterService = {
     },
 
     /**
+     * Aggiorna un filtro utente esistente.
+     */
+    async updateUserFilter(id, payload) {
+        const response = await axios.put(`/api/user-filters/${id}`, payload);
+        return response.data.data ? response.data.data : response.data;
+    },
+
+    /**
      * Clona i filtri di un utente su uno o più utenti di destinazione.
      */
     async copyUserFilters(payload) {

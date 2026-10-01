@@ -723,12 +723,29 @@
         
         <!-- FORM AGGIUNTA FILTRO -->
         <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-6">
-          <div class="border-b border-slate-100 pb-3">
-            <h3 class="text-sm font-bold text-slate-900">Assegna Nuova Competenza</h3>
-            <p class="text-xs text-slate-500 mt-0.5">Definisci a quale elemento o ufficio ha accesso l'operatore.</p>
+          <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <span>{{ editingFilterId ? 'Modifica Competenza #' + editingFilterId : 'Assegna Nuova Competenza' }}</span>
+                <span v-if="editingFilterId" class="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-full border border-amber-200">
+                  In Modifica
+                </span>
+              </h3>
+              <p class="text-xs text-slate-500 mt-0.5">
+                {{ editingFilterId ? 'Modifica i parametri nei campi sottostanti e salva per aggiornare la regola.' : 'Definisci a quale elemento o ufficio ha accesso l\'operatore.' }}
+              </p>
+            </div>
+            <button 
+              v-if="editingFilterId"
+              type="button"
+              @click="cancelEditFilter"
+              class="text-xs text-slate-500 hover:text-slate-800 font-semibold px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition"
+            >
+              Annulla
+            </button>
           </div>
 
-          <form @submit.prevent="saveUserFilter" class="space-y-4">
+          <form id="user-filter-form" @submit.prevent="saveUserFilter" class="space-y-4">
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1">Criterio / Modello Competenza</label>
               
@@ -746,7 +763,10 @@
               >
                 <option value="">-- Seleziona Criterio (es. Ufficio, Sede, Qualifica...) --</option>
                 <option v-for="crit in availableCriteria" :key="crit.scope_filter" :value="crit.scope_filter">
-                  {{ crit.name }} (protegge: {{ crit.target_models.join(', ') }})
+                  {{ crit.name }}{{ crit.target_models.length ? ' (protegge: ' + crit.target_models.join(', ') + ')' : '' }}
+                </option>
+                <option v-if="userForm.scope_filter && !availableCriteria.some(c => c.scope_filter === userForm.scope_filter)" :value="userForm.scope_filter">
+                  {{ formatClassName(userForm.scope_filter) }}
                 </option>
               </select>
             </div>
@@ -832,10 +852,29 @@
               >
             </div>
 
+            <div v-if="editingFilterId" class="flex items-center gap-2 pt-1">
+              <button 
+                type="submit" 
+                class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                Salva Modifiche
+              </button>
+              <button 
+                type="button" 
+                @click="cancelEditFilter"
+                class="px-4 py-3 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
+              >
+                Annulla
+              </button>
+            </div>
+
             <button 
+              v-else
               type="submit" 
-              class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer"
+              class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5"
             >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
               Assegna Competenza
             </button>
           </form>
@@ -856,7 +895,8 @@
             <div 
               v-for="f in currentUserFilters" 
               :key="f.id"
-              class="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-4"
+              class="p-4 rounded-xl border transition-all flex items-center justify-between gap-4"
+              :class="editingFilterId === f.id ? 'border-indigo-500 bg-indigo-50/70 ring-2 ring-indigo-500/20 shadow-xs' : 'border-slate-200 bg-slate-50'"
             >
               <div class="space-y-1.5 text-xs">
                 <div class="flex items-center gap-2 flex-wrap">
@@ -876,6 +916,15 @@
                     class="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded text-[10px] font-semibold"
                   >
                     Globale
+                  </span>
+
+                  <!-- Badge In Modifica -->
+                  <span 
+                    v-if="editingFilterId === f.id"
+                    class="px-2 py-0.5 bg-indigo-600 text-white rounded text-[10px] font-bold flex items-center gap-1 shadow-xs"
+                  >
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                    In Modifica
                   </span>
                 </div>
 
@@ -908,13 +957,26 @@
                 </div>
               </div>
 
-              <button 
-                @click="deleteUserFilter(f.id)"
-                class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                title="Revoca competenza"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-              </button>
+              <div class="flex items-center gap-1">
+                <!-- Bottone Modifica -->
+                <button 
+                  @click="startEditFilter(f)"
+                  class="p-2 rounded-lg transition cursor-pointer"
+                  :class="editingFilterId === f.id ? 'text-indigo-700 bg-indigo-100 ring-1 ring-indigo-400' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'"
+                  title="Modifica parametri competenza"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                </button>
+
+                <!-- Bottone Elimina -->
+                <button 
+                  @click="deleteUserFilter(f.id)"
+                  class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                  title="Revoca competenza"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1234,6 +1296,28 @@
             pivot_foreign_key: 'anagrafica_id',
             target_foreign_key: null,
             filter_key: 'qualifica_id',
+            parent_column: null,
+            additional_where: null
+          },
+          {
+            id: 2,
+            model_class: 'App\\Models\\Pratica',
+            scope_filter: 'App\\Models\\Ufficio',
+            pivot_table: null,
+            pivot_foreign_key: null,
+            target_foreign_key: null,
+            filter_key: 'ufficio_id',
+            parent_column: 'padre_id',
+            additional_where: null
+          },
+          {
+            id: 3,
+            model_class: 'App\\Models\\Dipendente',
+            scope_filter: 'App\\Models\\Sede',
+            pivot_table: null,
+            pivot_foreign_key: null,
+            target_foreign_key: null,
+            filter_key: 'sede_id',
             parent_column: null,
             additional_where: null
           }
@@ -1563,6 +1647,7 @@
         const userSearchResults = ref([]);
         const isUserDropdownOpen = ref(false);
         const selectedUser = ref(mockUsers[1]); // Default Cervone
+        const editingFilterId = ref(null);
         let searchTimeout = null;
 
         const userForm = reactive({
@@ -1615,6 +1700,10 @@
           selectedUser.value = u;
           userSearchQuery.value = u.label || u.name || `Utente #${u.id}`;
           isUserDropdownOpen.value = false;
+          if (editingFilterId.value) {
+            editingFilterId.value = null;
+            userForm.filterable_id = '';
+          }
         };
 
         const availableCriteria = computed(() => {
@@ -1636,6 +1725,27 @@
               map[def.scope_filter].parent_column = def.parent_column;
             }
           });
+
+          // Salvaguardia per filtri già assegnati o attualmente in modifica
+          if (userForm.scope_filter && !map[userForm.scope_filter]) {
+            map[userForm.scope_filter] = {
+              scope_filter: userForm.scope_filter,
+              name: formatClassName(userForm.scope_filter),
+              target_models: [],
+              parent_column: userForm.parent_column || null
+            };
+          }
+          allUserFilters.value.forEach(f => {
+            if (f.filterable_type && !map[f.filterable_type]) {
+              map[f.filterable_type] = {
+                scope_filter: f.filterable_type,
+                name: formatClassName(f.filterable_type),
+                target_models: [],
+                parent_column: f.parent_column || null
+              };
+            }
+          });
+
           return Object.values(map);
         });
 
@@ -1733,6 +1843,27 @@
           loadCriteriaItems(userForm.scope_filter);
         };
 
+        const startEditFilter = (f) => {
+          editingFilterId.value = f.id;
+          userForm.scope_filter = f.filterable_type;
+          userForm.target_model = f.target_model || '';
+          userForm.filterable_id = f.filterable_id;
+          userForm.group = f.group || 1;
+          userForm.include_children = !!f.include_children;
+          userForm.parent_column = f.parent_column || '';
+          loadCriteriaItems(f.filterable_type);
+          
+          const formEl = document.getElementById('user-filter-form');
+          if (formEl) {
+            formEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        };
+
+        const cancelEditFilter = () => {
+          editingFilterId.value = null;
+          userForm.filterable_id = '';
+        };
+
         const saveUserFilter = () => {
           if (!selectedUser.value) return;
           if (!userForm.scope_filter || !userForm.filterable_id) {
@@ -1740,8 +1871,9 @@
             return;
           }
 
-          // Verifica duplicati
+          // Verifica duplicati escludendo il filtro che stiamo modificando
           const isDuplicate = currentUserFilters.value.some(f => 
+            (editingFilterId.value ? f.id !== editingFilterId.value : true) &&
             f.filterable_type === userForm.scope_filter &&
             String(f.filterable_id) === String(userForm.filterable_id) &&
             Number(f.group) === Number(userForm.group || 1) &&
@@ -1751,6 +1883,25 @@
           if (isDuplicate) {
             const targetText = userForm.target_model ? `per ${formatClassName(userForm.target_model)}` : 'a livello globale';
             showToast(`Questa competenza è già stata assegnata all'operatore ${targetText} per il Gruppo ${userForm.group || 1}.`, 'error');
+            return;
+          }
+
+          if (editingFilterId.value) {
+            const idx = allUserFilters.value.findIndex(f => f.id === editingFilterId.value);
+            if (idx !== -1) {
+              allUserFilters.value[idx] = {
+                ...allUserFilters.value[idx],
+                filterable_type: userForm.scope_filter,
+                filterable_id: userForm.filterable_id,
+                target_model: userForm.target_model ? userForm.target_model : null,
+                group: userForm.group || 1,
+                include_children: userForm.include_children,
+                parent_column: userForm.parent_column ? userForm.parent_column : null
+              };
+              showToast('Competenza aggiornata con successo!');
+            }
+            editingFilterId.value = null;
+            userForm.filterable_id = '';
             return;
           }
 
@@ -1772,6 +1923,9 @@
         const deleteUserFilter = (id) => {
           if (!confirm('Vuoi rimuovere questo filtro di competenza?')) return;
           allUserFilters.value = allUserFilters.value.filter(f => f.id !== id);
+          if (editingFilterId.value === id) {
+            cancelEditFilter();
+          }
           showToast('Competenza revocata.');
         };
 
@@ -1921,6 +2075,9 @@
           onUserSearchInput,
           onScopeFilterChange,
           selectUser,
+          editingFilterId,
+          startEditFilter,
+          cancelEditFilter,
           saveUserFilter,
           deleteUserFilter,
           isCloneModalOpen,
