@@ -260,7 +260,7 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label class="block text-xs font-bold text-slate-700 mb-1">
                   Nome Colonna del Criterio (@{{ form.has_pivot ? 'nella pivot' : 'nella scheda' }})
@@ -274,11 +274,20 @@
                 >
               </div>
               <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Gerarchia ad Albero (opzionale)</label>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Albero / Padre (opzionale)</label>
                 <input 
                   v-model="form.parent_column" 
                   type="text" 
                   placeholder="es. padre_id o parent_id" 
+                  class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
+                >
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Chiave Nodo (opzionale)</label>
+                <input 
+                  v-model="form.key_column" 
+                  type="text" 
+                  placeholder="es. id, codice o uuid" 
                   class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                 >
               </div>
@@ -616,6 +625,8 @@
               </div>
               <div class="text-[11px] text-slate-500 font-mono flex flex-wrap items-center gap-1.5 mt-0.5">
                 <span>chiave: @{{ d.filter_key }}</span>
+                <span v-if="d.parent_column" class="bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.2 rounded font-mono">albero: @{{ d.parent_column }}</span>
+                <span v-if="d.key_column" class="bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0.2 rounded font-mono">nodo: @{{ d.key_column }}</span>
                 <span v-if="d.pivot_table">• pivot: @{{ d.pivot_table }}</span>
                 <span v-if="d.target_foreign_key" class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.2 rounded font-mono">chiave scheda: @{{ d.target_foreign_key }}</span>
                 <span v-if="d.additional_where" class="bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.2 rounded font-mono">+filtri extra</span>

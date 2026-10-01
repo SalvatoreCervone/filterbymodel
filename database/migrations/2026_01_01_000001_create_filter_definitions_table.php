@@ -46,6 +46,10 @@ return new class extends Migration
             $table->string('parent_column')->nullable()
                   ->comment('Nome della colonna per la gerarchia ad albero (es. padre_id, parent_id).');
 
+            // Colonna chiave identificativa del criterio (se diversa da 'id' o dalla PK standard)
+            $table->string('key_column')->nullable()
+                  ->comment('Nome della colonna identificativa del nodo per l\'albero (es. id, codice, uuid). Se NULL usa PK o id.');
+
             // Condizioni extra opzionali in formato JSON
             $table->json('additional_where')->nullable()
                   ->comment('Condizioni di filtraggio aggiuntive in formato JSON.');

@@ -58,6 +58,7 @@
         target_foreign_key: '',
         filter_key: '',
         parent_column: '',
+        key_column: '',
         additional_where: null
       });
 
@@ -351,6 +352,7 @@
         form.target_foreign_key = d.target_foreign_key || '';
         form.filter_key = d.filter_key || '';
         form.parent_column = d.parent_column || '';
+        form.key_column = d.key_column || '';
         
         await loadModelColumns();
 
@@ -387,6 +389,7 @@
         form.target_foreign_key = '';
         form.filter_key = '';
         form.parent_column = '';
+        form.key_column = '';
         conditions.value = [];
         rawAdditionalWhere.value = '';
         availableColumns.value = [];
@@ -415,6 +418,7 @@
             target_foreign_key: form.has_pivot && form.target_foreign_key ? form.target_foreign_key : null,
             filter_key: form.filter_key,
             parent_column: form.parent_column ? form.parent_column : null,
+            key_column: form.key_column ? form.key_column : null,
             additional_where: validConditions.length > 0 ? validConditions : null
           };
 
@@ -551,7 +555,8 @@
         filterable_id: '',
         group: 1,
         include_children: false,
-        parent_column: ''
+        parent_column: '',
+        key_column: ''
       });
 
       let criteriaSearchTimeout = null;
@@ -673,9 +678,11 @@
         const selectedCrit = availableCriteria.value.find(c => c.scope_filter === userForm.scope_filter);
         if (selectedCrit && selectedCrit.parent_column) {
           userForm.parent_column = selectedCrit.parent_column;
+          userForm.key_column = selectedCrit.key_column || '';
           userForm.include_children = true;
         } else {
           userForm.parent_column = '';
+          userForm.key_column = selectedCrit ? (selectedCrit.key_column || '') : '';
           userForm.include_children = false;
         }
         loadCriteriaItems(userForm.scope_filter);
@@ -691,6 +698,7 @@
         userForm.group = filter.group || 1;
         userForm.include_children = !!filter.include_children;
         userForm.parent_column = filter.parent_column || '';
+        userForm.key_column = filter.key_column || '';
         loadCriteriaItems(filter.filterable_type, filter.filterable_id);
         const formEl = document.getElementById('user-filter-form');
         if (formEl) {
@@ -706,6 +714,7 @@
         userForm.group = 1;
         userForm.include_children = false;
         userForm.parent_column = '';
+        userForm.key_column = '';
       };
 
       const saveUserFilter = async () => {
@@ -741,7 +750,8 @@
                 target_model: userForm.target_model ? userForm.target_model : null,
                 group: userForm.group || 1,
                 include_children: userForm.include_children,
-                parent_column: userForm.parent_column ? userForm.parent_column : null
+                parent_column: userForm.parent_column ? userForm.parent_column : null,
+                key_column: userForm.key_column ? userForm.key_column : null
               })
             });
             showToast('Competenza aggiornata con successo!');
@@ -756,7 +766,8 @@
                 target_model: userForm.target_model ? userForm.target_model : null,
                 group: userForm.group || 1,
                 include_children: userForm.include_children,
-                parent_column: userForm.parent_column ? userForm.parent_column : null
+                parent_column: userForm.parent_column ? userForm.parent_column : null,
+                key_column: userForm.key_column ? userForm.key_column : null
               })
             });
             showToast('Competenza assegnata all\'operatore!');

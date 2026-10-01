@@ -211,19 +211,29 @@ class ModelFilterService
                     ? $definition->parent_column 
                     : $this->resolveParentColumn($dummyInstance);
 
+                $keyColumn = !empty($definition->key_column)
+                    ? $definition->key_column
+                    : $this->resolveKeyColumn($dummyInstance);
+
                 $allowedIds = [];
                 foreach ($items as $item) {
                     if (isset($item->filterable_id) && $item->filterable_id !== '') {
-                        $allowedIds[] = is_numeric($item->filterable_id) ? (int) $item->filterable_id : (string) $item->filterable_id;
+                        $rawId = $item->filterable_id;
+                        $nodeId = is_numeric($rawId) ? (int) $rawId : (string) $rawId;
+                        $allowedIds[] = $nodeId;
 
-                        if ($item->include_children && is_numeric($item->filterable_id)) {
+                        if ($item->include_children) {
                             $actualParentCol = !empty($item->parent_column)
                                 ? $item->parent_column
                                 : $parentColumn;
 
+                            $actualKeyCol = !empty($item->key_column)
+                                ? $item->key_column
+                                : $keyColumn;
+
                             $allowedIds = array_merge(
                                 $allowedIds,
-                                $this->getTreeChildrenIds($baseTable, (int) $item->filterable_id, null, $actualParentCol)
+                                $this->getTreeChildrenIds($baseTable, $nodeId, null, $actualParentCol, $actualKeyCol)
                             );
                         }
                     }
@@ -505,29 +515,134 @@ class ModelFilterService
     }
 
     /**
-     * Metodo ricorsivo ottimizzato: carica la mappa dell'albero in memoria con 1 sola query.
-     * Protezione anti-loop con array di nodi visitati.
+     * Risolve dinamicamente il nome della colonna chiave/identificativa del nodo per la gerarchia.
+     * Ordine di priorità:
+     * 1. Metodo specifico sul modello: $model->getTreeKeyName() o $model->getKeyColumnName()
+     * 2. Proprietà specifica sul modello: $model->treeKeyColumn o $model->keyColumn
+     * 3. Mapping per-model in configurazione: config("filterbymodel.hierarchy.model_key_columns.{ModelClass}")
+     * 4. Chiave primaria standard Eloquent del modello: $model->getKeyName() (es. 'id', 'codice', 'uuid')
+     * 5. Auto-detection dinamico su Schema: verifica esistenza di colonne note ('id', 'codice', 'code', 'uuid', ecc.)
+     * 6. Config globale: config('filterbymodel.hierarchy.key_column', 'id')
      */
-    private function getTreeChildrenIds(string $tableName, int $parentId, ?array $allRows = null, string $parentColumn = 'padre_id', array $visited = []): array
+    public function resolveKeyColumn(Model $model): string
     {
+        // 1. Metodo specifico sul modello
+        if (method_exists($model, 'getTreeKeyName')) {
+            return $model->getTreeKeyName();
+        }
+        if (method_exists($model, 'getKeyColumnName')) {
+            return $model->getKeyColumnName();
+        }
+
+        // 2. Proprietà specifica sul modello
+        if (isset($model->treeKeyColumn) && is_string($model->treeKeyColumn)) {
+            return $model->treeKeyColumn;
+        }
+        if (isset($model->keyColumn) && is_string($model->keyColumn)) {
+            return $model->keyColumn;
+        }
+
+        $modelClass = get_class($model);
+
+        // 3. Mapping specifico per classe in configurazione
+        $modelKeyColumns = config('filterbymodel.hierarchy.model_key_columns', []);
+        if (isset($modelKeyColumns[$modelClass])) {
+            return $modelKeyColumns[$modelClass];
+        }
+
+        $tableName = $model->getTable();
+
+        // 4. Chiave primaria standard del modello Eloquent (se definita e presente su schema)
+        try {
+            $pk = $model->getKeyName();
+            if (!empty($pk)) {
+                if (\Illuminate\Support\Facades\Schema::hasColumn($tableName, $pk)) {
+                    return $pk;
+                }
+                return $pk;
+            }
+        } catch (\Throwable $e) {
+            // In caso di problemi di connessione o schema prosegui con i controlli
+        }
+
+        // 5. Auto-detection dinamico sullo schema del Database
+        $candidates = config('filterbymodel.hierarchy.fallback_key_columns', [
+            'id',
+            'codice',
+            'code',
+            'uuid',
+            'matricola',
+            'pk',
+        ]);
+
+        try {
+            foreach ($candidates as $column) {
+                if (\Illuminate\Support\Facades\Schema::hasColumn($tableName, $column)) {
+                    return $column;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignora errori schema
+        }
+
+        // 6. Fallback alla configurazione globale di default
+        return config('filterbymodel.hierarchy.key_column', 'id');
+    }
+
+    /**
+     * Metodo ricorsivo ottimizzato: carica la mappa dell'albero in memoria con 1 sola query.
+     * Supporta chiavi personalizzate (non solo 'id') e valori sia numerici sia stringhe/codici.
+     * Protezione anti-loop con tracciamento stringa dei nodi visitati.
+     *
+     * @param string $tableName
+     * @param int|string $parentId
+     * @param array|null $allRows
+     * @param string $parentColumn
+     * @param string $keyColumn
+     * @param array $visited
+     * @return array
+     */
+    public function getTreeChildrenIds(
+        string $tableName, 
+        $parentId, 
+        ?array $allRows = null, 
+        string $parentColumn = 'padre_id', 
+        string $keyColumn = 'id', 
+        array $visited = []
+    ): array {
         if ($allRows === null) {
-            $allRows = DB::table($tableName)->select('id', $parentColumn)->get()->toArray();
+            try {
+                $allRows = DB::table($tableName)->select($keyColumn, $parentColumn)->get()->toArray();
+            } catch (\Throwable $e) {
+                // In caso di schema non accessibile o colonna non trovata, evita crash
+                return [];
+            }
         }
 
         $childrenIds = [];
+        $targetParentStr = (string) $parentId;
+
         foreach ($allRows as $row) {
-            if (isset($row->{$parentColumn}) && (int) $row->{$parentColumn} === $parentId) {
-                $childId = (int) $row->id;
+            if (isset($row->{$parentColumn}) && (string) $row->{$parentColumn} === $targetParentStr) {
+                $rawChildId = $row->{$keyColumn} ?? null;
+                if ($rawChildId === null) {
+                    continue;
+                }
+
+                $childId = is_numeric($rawChildId) ? (int) $rawChildId : (string) $rawChildId;
+                $childStr = (string) $childId;
 
                 // Protezione anti-loop: evita ricorsione infinita su relazioni circolari
-                if (in_array($childId, $visited, true)) {
+                if (in_array($childStr, $visited, true)) {
                     continue;
                 }
 
                 $childrenIds[] = $childId;
+                $newVisited = array_merge($visited, [$childStr]);
+
                 $childrenIds = array_merge(
                     $childrenIds,
-                    $this->getTreeChildrenIds($tableName, $childId, $allRows, $parentColumn, array_merge($visited, [$childId]))
+                    $this->getTreeChildrenIds($tableName, $childId, $allRows, $parentColumn, $keyColumn, $newVisited)
                 );
             }
         }

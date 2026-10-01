@@ -46,6 +46,8 @@ return new class extends Migration
             $table->boolean('include_children')->default(false);
             $table->string('parent_column')->nullable()
                   ->comment('Colonna personalizzata padre per questo filtro (es. parent_id, padre_id).');
+            $table->string('key_column')->nullable()
+                  ->comment('Colonna personalizzata chiave del nodo per questo filtro (se null eredita dalla definizione o dal modello).');
 
             // Gruppo logico: AND nello stesso gruppo, OR tra gruppi diversi
             $table->integer('group')->default(1);

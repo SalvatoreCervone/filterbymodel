@@ -17,6 +17,7 @@ class FilterDefinition extends Model
         'target_foreign_key',
         'filter_key',
         'parent_column',
+        'key_column',
         'additional_where',
     ];
 

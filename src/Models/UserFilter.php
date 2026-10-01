@@ -18,6 +18,7 @@ class UserFilter extends Model
         'target_model',
         'include_children',
         'parent_column',
+        'key_column',
         'group',
     ];
 

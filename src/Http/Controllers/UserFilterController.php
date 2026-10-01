@@ -44,6 +44,7 @@ class UserFilterController extends Controller
             'target_model'     => 'nullable|string|max:255',
             'include_children' => 'sometimes|boolean',
             'parent_column'    => 'nullable|string|max:255',
+            'key_column'       => 'nullable|string|max:255',
             'group'            => 'required|integer|min:1',
         ]);
 
@@ -88,6 +89,7 @@ class UserFilterController extends Controller
             'target_model'     => 'nullable|string|max:255',
             'include_children' => 'sometimes|boolean',
             'parent_column'    => 'nullable|string|max:255',
+            'key_column'       => 'nullable|string|max:255',
             'group'            => 'required|integer|min:1',
         ]);
 
@@ -204,6 +206,7 @@ class UserFilterController extends Controller
                         'target_model'     => $sourceFilter->target_model,
                         'include_children' => $sourceFilter->include_children,
                         'parent_column'    => $sourceFilter->parent_column,
+                        'key_column'       => $sourceFilter->key_column,
                         'group'            => $sourceFilter->group,
                     ]);
 
@@ -317,6 +320,7 @@ class UserFilterController extends Controller
     {
         $modelClass = (string) $request->input('scope_filter', '');
         $search = (string) $request->input('search', '');
+        $customKey = (string) $request->input('key_column', '');
 
         if (empty($modelClass) || !class_exists($modelClass)) {
             return response()->json(['items' => []]);
@@ -326,7 +330,10 @@ class UserFilterController extends Controller
             /** @var \Illuminate\Database\Eloquent\Model $instance */
             $instance = new $modelClass();
             $table = $instance->getTable();
-            $pk = $instance->getKeyName() ?: 'id';
+
+            /** @var ModelFilterService $service */
+            $service = app(ModelFilterService::class);
+            $pk = !empty($customKey) ? $customKey : $service->resolveKeyColumn($instance);
 
             if (!\Illuminate\Support\Facades\Schema::hasTable($table)) {
                 return response()->json(['items' => []]);

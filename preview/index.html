@@ -334,7 +334,7 @@
                   </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">
                       Nome Colonna del Criterio ({{ form.has_pivot ? 'nella pivot' : 'nella scheda' }})
@@ -348,11 +348,20 @@
                     >
                   </div>
                   <div>
-                    <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Gerarchia ad Albero (opzionale)</label>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Albero / Padre (opzionale)</label>
                     <input 
                       v-model="form.parent_column" 
                       type="text" 
                       placeholder="es. padre_id o parent_id" 
+                      class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
+                    >
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Chiave Nodo (opzionale)</label>
+                    <input 
+                      v-model="form.key_column" 
+                      type="text" 
+                      placeholder="es. id, codice o uuid" 
                       class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                     >
                   </div>
@@ -691,6 +700,8 @@
                   </div>
                   <div class="text-[11px] text-slate-500 font-mono flex flex-wrap items-center gap-1.5 mt-0.5">
                     <span>chiave: {{ d.filter_key }}</span>
+                    <span v-if="d.parent_column" class="bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.2 rounded font-mono">albero: {{ d.parent_column }}</span>
+                    <span v-if="d.key_column" class="bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0.2 rounded font-mono">nodo: {{ d.key_column }}</span>
                     <span v-if="d.pivot_table">• pivot: {{ d.pivot_table }}</span>
                     <span v-if="d.target_foreign_key" class="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.2 rounded font-mono">chiave scheda: {{ d.target_foreign_key }}</span>
                     <span v-if="d.additional_where" class="bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.2 rounded font-mono">+filtri extra</span>
@@ -947,14 +958,25 @@
               </div>
             </div>
 
-            <div v-if="userForm.include_children">
-              <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Gerarchica (opzionale)</label>
-              <input 
-                v-model="userForm.parent_column" 
-                type="text" 
-                placeholder="es. padre_id (default automatico)"
-                class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600"
-              >
+            <div v-if="userForm.include_children" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Gerarchica Padre (opzionale)</label>
+                <input 
+                  v-model="userForm.parent_column" 
+                  type="text" 
+                  placeholder="es. padre_id (default automatico)"
+                  class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600"
+                >
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Chiave Nodo (opzionale)</label>
+                <input 
+                  v-model="userForm.key_column" 
+                  type="text" 
+                  placeholder="es. id, codice (default PK)"
+                  class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600"
+                >
+              </div>
             </div>
 
             <div v-if="editingFilterId" class="flex items-center gap-2 pt-1">
@@ -1056,9 +1078,13 @@
                   </template>
                 </div>
 
-                <div v-if="f.include_children" class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                  Include tutti i sotto-nodi gerarchici discendenti
+                <div v-if="f.include_children" class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1.5 flex-wrap">
+                  <span class="flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                    Include discendenti
+                  </span>
+                  <span v-if="f.parent_column" class="bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.2 rounded font-mono">albero: {{ f.parent_column }}</span>
+                  <span v-if="f.key_column" class="bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0.2 rounded font-mono">chiave: {{ f.key_column }}</span>
                 </div>
               </div>
 
@@ -1406,6 +1432,7 @@
             target_foreign_key: null,
             filter_key: 'qualifica_id',
             parent_column: null,
+            key_column: null,
             additional_where: null
           },
           {
@@ -1417,6 +1444,7 @@
             target_foreign_key: null,
             filter_key: 'ufficio_id',
             parent_column: 'padre_id',
+            key_column: 'id',
             additional_where: null
           },
           {
@@ -1428,6 +1456,7 @@
             target_foreign_key: null,
             filter_key: 'sede_id',
             parent_column: null,
+            key_column: null,
             additional_where: null
           }
         ]);
@@ -1450,6 +1479,7 @@
           target_foreign_key: '',
           filter_key: 'qualifica_id',
           parent_column: '',
+          key_column: '',
           additional_where: null
         });
 
@@ -1700,6 +1730,7 @@
           form.target_foreign_key = d.target_foreign_key || '';
           form.filter_key = d.filter_key || '';
           form.parent_column = d.parent_column || '';
+          form.key_column = d.key_column || '';
           loadModelColumns();
 
           let where = d.additional_where;
@@ -1733,6 +1764,7 @@
           form.target_foreign_key = '';
           form.filter_key = '';
           form.parent_column = '';
+          form.key_column = '';
           conditions.value = [];
           rawAdditionalWhere.value = '';
           jsonError.value = false;
@@ -1761,6 +1793,7 @@
               target_foreign_key: form.has_pivot && form.target_foreign_key ? form.target_foreign_key : null,
               filter_key: form.filter_key,
               parent_column: form.parent_column ? form.parent_column : null,
+              key_column: form.key_column ? form.key_column : null,
               additional_where: validConditions.length > 0 ? validConditions : null
             };
 
@@ -1798,9 +1831,9 @@
         ];
 
         const allUserFilters = ref([
-          { id: 101, user_id: 2, filterable_type: 'App\\Models\\Qualifica', filterable_id: '30', group: 1, include_children: false, parent_column: null },
-          { id: 102, user_id: 2, filterable_type: 'App\\Models\\Ufficio', filterable_id: '5', group: 1, include_children: true, parent_column: 'padre_id' },
-          { id: 103, user_id: 1, filterable_type: 'App\\Models\\Sede', filterable_id: '1', group: 1, include_children: false, parent_column: null }
+          { id: 101, user_id: 2, filterable_type: 'App\\Models\\Qualifica', filterable_id: '30', group: 1, include_children: false, parent_column: null, key_column: null },
+          { id: 102, user_id: 2, filterable_type: 'App\\Models\\Ufficio', filterable_id: '5', group: 1, include_children: true, parent_column: 'padre_id', key_column: 'id' },
+          { id: 103, user_id: 1, filterable_type: 'App\\Models\\Sede', filterable_id: '1', group: 1, include_children: false, parent_column: null, key_column: null }
         ]);
 
         const userSearchQuery = ref('');
@@ -1816,7 +1849,8 @@
           filterable_id: '',
           group: 1,
           include_children: false,
-          parent_column: ''
+          parent_column: '',
+          key_column: ''
         });
 
         const currentScopeTargetModels = computed(() => {
@@ -1874,7 +1908,8 @@
                 scope_filter: def.scope_filter,
                 name: formatClassName(def.scope_filter),
                 target_models: [],
-                parent_column: def.parent_column || null
+                parent_column: def.parent_column || null,
+                key_column: def.key_column || null
               };
             }
             const modelName = formatClassName(def.model_class);
@@ -1883,6 +1918,9 @@
             }
             if (def.parent_column && !map[def.scope_filter].parent_column) {
               map[def.scope_filter].parent_column = def.parent_column;
+            }
+            if (def.key_column && !map[def.scope_filter].key_column) {
+              map[def.scope_filter].key_column = def.key_column;
             }
           });
 
@@ -1995,9 +2033,11 @@
           const selectedCrit = availableCriteria.value.find(c => c.scope_filter === userForm.scope_filter);
           if (selectedCrit && selectedCrit.parent_column) {
             userForm.parent_column = selectedCrit.parent_column;
+            userForm.key_column = selectedCrit.key_column || '';
             userForm.include_children = true;
           } else {
             userForm.parent_column = '';
+            userForm.key_column = selectedCrit ? (selectedCrit.key_column || '') : '';
             userForm.include_children = false;
           }
           loadCriteriaItems(userForm.scope_filter);
@@ -2011,6 +2051,7 @@
           userForm.group = f.group || 1;
           userForm.include_children = !!f.include_children;
           userForm.parent_column = f.parent_column || '';
+          userForm.key_column = f.key_column || '';
           loadCriteriaItems(f.filterable_type);
           
           const formEl = document.getElementById('user-filter-form');
@@ -2056,7 +2097,8 @@
                 target_model: userForm.target_model ? userForm.target_model : null,
                 group: userForm.group || 1,
                 include_children: userForm.include_children,
-                parent_column: userForm.parent_column ? userForm.parent_column : null
+                parent_column: userForm.parent_column ? userForm.parent_column : null,
+                key_column: userForm.key_column ? userForm.key_column : null
               };
               showToast('Competenza aggiornata con successo!');
             }
@@ -2073,7 +2115,8 @@
             target_model: userForm.target_model ? userForm.target_model : null,
             group: userForm.group || 1,
             include_children: userForm.include_children,
-            parent_column: userForm.parent_column ? userForm.parent_column : null
+            parent_column: userForm.parent_column ? userForm.parent_column : null,
+            key_column: userForm.key_column ? userForm.key_column : null
           });
 
           showToast('Competenza assegnata all\'operatore!');

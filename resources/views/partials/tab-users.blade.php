@@ -415,14 +415,25 @@
             </div>
           </div>
 
-          <div v-if="userForm.include_children">
-            <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Gerarchica (opzionale)</label>
-            <input 
-              v-model="userForm.parent_column" 
-              type="text" 
-              placeholder="es. padre_id (default automatico)"
-              class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600"
-            >
+          <div v-if="userForm.include_children" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Gerarchica Padre (opzionale)</label>
+              <input 
+                v-model="userForm.parent_column" 
+                type="text" 
+                placeholder="es. padre_id (default automatico)"
+                class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600"
+              >
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Chiave Nodo (opzionale)</label>
+              <input 
+                v-model="userForm.key_column" 
+                type="text" 
+                placeholder="es. id, codice (default PK)"
+                class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600"
+              >
+            </div>
           </div>
 
           <div v-if="editingFilterId" class="flex items-center gap-2 pt-1">
@@ -526,9 +537,13 @@
                 </template>
               </div>
 
-              <div v-if="f.include_children" class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                Include tutti i sotto-nodi gerarchici discendenti
+              <div v-if="f.include_children" class="text-[11px] text-emerald-700 font-semibold flex items-center gap-1.5 flex-wrap">
+                <span class="flex items-center gap-1">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                  Include discendenti
+                </span>
+                <span v-if="f.parent_column" class="bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.2 rounded font-mono">albero: @{{ f.parent_column }}</span>
+                <span v-if="f.key_column" class="bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0.2 rounded font-mono">chiave: @{{ f.key_column }}</span>
               </div>
             </div>
 

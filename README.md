@@ -144,7 +144,10 @@ return [
 
     // Risoluzione gerarchica ad albero
     'hierarchy' => [
-        'parent_column' => 'padre_id',
+        'parent_column'     => 'padre_id',
+        'key_column'        => 'id',
+        'model_columns'     => [],
+        'model_key_columns' => [],
     ],
 
     // Sicurezza e Architettura Fail-Closed
@@ -421,10 +424,11 @@ Nella tua vista Blade (es. `resources/views/admin/filters.blade.php`):
 
 ### Strutture ad Albero e Colonne Gerarchiche (`include_children`)
 
-Quando si abilitano i nodi figli (`include_children`), il package calcola ricorsivamente tutti i discendenti:
+Quando si abilitano i nodi figli (`include_children`), il package calcola ricorsivamente tutti i discendenti dell'albero:
 
-- **Dalla UI Admin (`FilterDefinitionManager.vue`)**: puoi indicare esplicitamente il campo gerarchico (es. `parent_id`, `id_padre`, `padre_id`).
-- **Se lasciato vuoto**: usa `padre_id` (o la configurazione globale) oppure rileva automaticamente le colonne convenzionali su DB (`padre_id`, `parent_id`, `id_padre`, `parent_code`, `id_genitore`).
+- **Colonna Padre (`parent_column`)**: puoi indicare esplicitamente il campo gerarchico genitore (es. `parent_id`, `id_padre`, `padre_id`). Se lasciato vuoto, viene dedotto automaticamente tramite metodi del model (`getParentColumnName()`), proprietà (`$parentColumn`), mappatura o auto-detection su DB Schema (default: `padre_id`).
+- **Colonna Chiave / Identificativo del Nodo (`key_column`)**: non sempre la chiave identificativa del criterio è il campo `id`! In molti schemi legacy o reali la chiave può chiamarsi `codice`, `id_ufficio`, `uuid`, `matricola`, ecc. Puoi personalizzare esplicitamente la colonna chiave sia nelle definizioni di filtro sia nelle competenze utente. Se lasciato vuoto, il package la deduce automaticamente dalla Primary Key del modello Eloquent (`$model->getKeyName()`), da metodi dedicati (`getTreeKeyName()`), o da schema (default: `id`).
+- **Supporto a Chiavi Alfanumeriche / Stringhe**: la risoluzione dei figli supporta in modo trasparente sia codici numerici che stringhe (es. `UFF_CENTRO`, UUID, codici alfanumerici), senza forzare cast a intero e con protezione anti-loop su relazioni circolari.
 
 ### Scoping Granulare per Modello Target
 

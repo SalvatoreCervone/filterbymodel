@@ -143,17 +143,29 @@ return [
     */
 
     'hierarchy' => [
-        // Colonna predefinita globale di fallback
+        // Colonna predefinita globale di fallback per il collegamento al genitore
         'parent_column' => 'padre_id',
 
-        // Mappatura specifica per singoli modelli (opzionale)
+        // Colonna identificativa/chiave predefinita globale per il nodo dell'albero (default 'id')
+        'key_column' => 'id',
+
+        // Mappatura specifica della colonna genitore per singoli modelli (opzionale)
         'model_columns' => [
             // 'App\Models\Category' => 'parent_id',
             // 'App\Models\Office'   => 'parent_office_id',
         ],
 
-        // Colonne verificate in ordine durante l'auto-detection su DB Schema
+        // Mappatura specifica della colonna chiave per singoli modelli (opzionale)
+        'model_key_columns' => [
+            // 'App\Models\Category' => 'id',
+            // 'App\Models\Office'   => 'codice',
+        ],
+
+        // Colonne genitore verificate in ordine durante l'auto-detection su DB Schema
         'fallback_columns' => ['padre_id', 'parent_id', 'id_padre', 'parent_code', 'id_genitore', 'parent_node_id'],
+
+        // Colonne chiave/identificative verificate in ordine durante l'auto-detection su DB Schema
+        'fallback_key_columns' => ['id', 'codice', 'code', 'uuid', 'matricola', 'pk'],
     ],
 
     /*

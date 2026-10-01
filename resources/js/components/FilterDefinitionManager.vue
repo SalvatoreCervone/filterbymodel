@@ -459,25 +459,43 @@
 
               </div>
 
-              <!-- COLONNA GERARCHIA AD ALBERO -->
-              <div class="space-y-2 pt-3 border-t border-slate-200">
+              <!-- COLONNA GERARCHIA AD ALBERO E CHIAVE IDENTIFICATIVA -->
+              <div class="space-y-3 pt-3 border-t border-slate-200">
                 <div class="flex items-center justify-between">
                   <label class="block text-xs font-extrabold text-slate-800">
-                    Colonna per la Gerarchia ad Albero (Opzionale)
+                    Gerarchia ad Albero e Colonna Chiave (Opzionale)
                   </label>
                   <span class="text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
                     Risoluzione Figli
                   </span>
                 </div>
                 <p class="text-xs text-slate-500">
-                  Se questo criterio ha sotto-elementi (figli) e la colonna del genitore non si chiama <code>padre_id</code>, scrivi qui il suo nome (es. <code>parent_id</code>, <code>id_padre</code>).
+                  Se questo criterio ha sotto-elementi (figli) puoi personalizzare il nome della colonna genitore e della chiave identificativa del nodo.
                 </p>
-                <input 
-                  type="text" 
-                  v-model="form.parent_column" 
-                  class="w-full border-2 border-slate-300 rounded-xl p-2.5 text-xs font-mono bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm" 
-                  placeholder="Lascia vuoto se usa 'padre_id' (Default)" 
-                />
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                      Colonna Padre / Genitore
+                    </label>
+                    <input 
+                      type="text" 
+                      v-model="form.parent_column" 
+                      class="w-full border-2 border-slate-300 rounded-xl p-2.5 text-xs font-mono bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm" 
+                      placeholder="es. padre_id o parent_id" 
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-bold text-slate-700 mb-1">
+                      Colonna Chiave / Identificativo Nodo
+                    </label>
+                    <input 
+                      type="text" 
+                      v-model="form.key_column" 
+                      class="w-full border-2 border-slate-300 rounded-xl p-2.5 text-xs font-mono bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm" 
+                      placeholder="Lascia vuoto per PK modello (es. id, codice)" 
+                    />
+                  </div>
+                </div>
               </div>
 
               <!-- FILTRO CONDIZIONALE EXTRA -->
@@ -623,6 +641,7 @@
                   <div><strong>Criterio:</strong> <span class="font-mono">{{ def.scope_filter }}</span></div>
                   <div><strong>Campo filtro:</strong> <span class="font-mono font-bold text-emerald-800">{{ def.filter_key }}</span></div>
                   <div v-if="def.parent_column"><strong>Colonna albero:</strong> <span class="font-mono text-indigo-700 font-bold">{{ def.parent_column }}</span></div>
+                  <div v-if="def.key_column"><strong>Colonna chiave nodo:</strong> <span class="font-mono text-purple-700 font-bold">{{ def.key_column }}</span></div>
                   <div v-if="def.pivot_table"><strong>Tabella ponte:</strong> <span class="font-mono text-sky-800">{{ def.pivot_table }}</span> (rif. scheda: <span class="font-mono text-amber-800">{{ def.pivot_foreign_key }}</span>)</div>
                   <div v-if="def.target_foreign_key"><strong>Identificativo speciale:</strong> <span class="font-mono">{{ def.target_foreign_key }}</span></div>
                   <div v-if="def.additional_where"><strong>Condizione fissa:</strong> <span class="font-mono">{{ typeof def.additional_where === 'string' ? def.additional_where : JSON.stringify(def.additional_where) }}</span></div>
@@ -772,6 +791,7 @@ const form = reactive({
   target_foreign_key: '',
   filter_key: '',
   parent_column: '',
+  key_column: '',
   additional_where: null
 });
 
@@ -889,6 +909,7 @@ const startEditDefinition = (def) => {
   form.target_foreign_key = def.target_foreign_key || '';
   form.filter_key = def.filter_key || '';
   form.parent_column = def.parent_column || '';
+  form.key_column = def.key_column || '';
   form.additional_where = def.additional_where || null;
   rawAdditionalWhere.value = def.additional_where 
     ? (typeof def.additional_where === 'string' ? def.additional_where : JSON.stringify(def.additional_where)) 
@@ -906,6 +927,7 @@ const cancelEditDefinition = () => {
   form.target_foreign_key = '';
   form.filter_key = '';
   form.parent_column = '';
+  form.key_column = '';
   form.additional_where = null;
   rawAdditionalWhere.value = '';
 };
@@ -924,6 +946,7 @@ const handleSubmit = async () => {
       target_foreign_key: form.has_pivot && form.target_foreign_key ? form.target_foreign_key : null,
       filter_key: form.filter_key,
       parent_column: form.parent_column ? form.parent_column : null,
+      key_column: form.key_column ? form.key_column : null,
       additional_where: form.additional_where
     };
 

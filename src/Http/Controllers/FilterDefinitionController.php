@@ -33,6 +33,7 @@ class FilterDefinitionController extends Controller
             'target_foreign_key' => 'nullable|string|max:255',
             'filter_key'         => 'required|string|max:255',
             'parent_column'      => 'nullable|string|max:255',
+            'key_column'         => 'nullable|string|max:255',
             'additional_where'   => 'nullable',
         ]);
 
@@ -53,6 +54,10 @@ class FilterDefinitionController extends Controller
 
         if (empty($validated['parent_column'])) {
             $validated['parent_column'] = null;
+        }
+
+        if (empty($validated['key_column'])) {
+            $validated['key_column'] = null;
         }
 
         $definition = FilterDefinition::updateOrCreate(
@@ -81,6 +86,7 @@ class FilterDefinitionController extends Controller
             'target_foreign_key' => 'nullable|string|max:255',
             'filter_key'         => 'required|string|max:255',
             'parent_column'      => 'nullable|string|max:255',
+            'key_column'         => 'nullable|string|max:255',
             'additional_where'   => 'nullable',
         ]);
 
@@ -99,6 +105,10 @@ class FilterDefinitionController extends Controller
 
         if (empty($validated['parent_column'])) {
             $validated['parent_column'] = null;
+        }
+
+        if (empty($validated['key_column'])) {
+            $validated['key_column'] = null;
         }
 
         $definition->update($validated);
@@ -142,6 +152,8 @@ class FilterDefinitionController extends Controller
         $tableExists = true;
         $checkedTable = null;
 
+        $primaryKey = null;
+
         // Se è specificata una tabella ponte (pivot), estrai prioritariamente i suoi campi
         if (!empty($tableName)) {
             $checkedTable = $tableName;
@@ -161,6 +173,7 @@ class FilterDefinitionController extends Controller
                 $instance = new $modelClass();
                 $table = $instance->getTable();
                 $checkedTable = $table;
+                $primaryKey = $instance->getKeyName() ?: 'id';
                 if (\Illuminate\Support\Facades\Schema::hasTable($table)) {
                     $columns = \Illuminate\Support\Facades\Schema::getColumnListing($table);
                     $tableExists = true;
@@ -173,9 +186,10 @@ class FilterDefinitionController extends Controller
         }
 
         return response()->json([
-            'columns' => array_values(array_unique($columns)),
+            'columns'      => array_values(array_unique($columns)),
             'table_exists' => $tableExists,
-            'table' => $checkedTable
+            'table'        => $checkedTable,
+            'primary_key'  => $primaryKey,
         ]);
     }
 

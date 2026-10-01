@@ -72,6 +72,9 @@
                 <span class="text-[10px] font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                   Colonna: <b class="text-indigo-700">{{ filter.parent_column || 'padre_id (Default)' }}</b>
                 </span>
+                <span v-if="filter.key_column" class="text-[10px] font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                  Chiave: <b class="text-purple-700">{{ filter.key_column }}</b>
+                </span>
               </div>
               <span 
                 v-else

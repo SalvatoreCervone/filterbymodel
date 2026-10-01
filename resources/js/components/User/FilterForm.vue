@@ -147,24 +147,41 @@
         </div>
 
         <!-- CAMPO CHE APPARE QUANDO LA CHECKBOX È SELEZIONATA -->
-        <div v-if="form.include_children" class="pl-6 pt-1 space-y-1 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 transition-all duration-200">
-          <div class="flex items-center justify-between">
-            <label class="block text-xs font-bold text-slate-800">
-              Nome della colonna genitore (Opzionale)
-            </label>
-            <span class="text-[10px] font-bold text-indigo-600 bg-white px-2 py-0.5 rounded border border-indigo-200">
-              Default: padre_id o rilevata da DB
-            </span>
+        <div v-if="form.include_children" class="pl-6 pt-1 space-y-2 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100 transition-all duration-200">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-bold text-slate-800">
+                  Colonna Genitore
+                </label>
+                <span class="text-[10px] font-bold text-indigo-600 bg-white px-1.5 py-0.2 rounded border border-indigo-200">
+                  Default: padre_id
+                </span>
+              </div>
+              <input 
+                type="text" 
+                v-model="form.parent_column" 
+                placeholder="es. padre_id" 
+                class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 transition" 
+              />
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-xs font-bold text-slate-800">
+                  Colonna Chiave Nodo
+                </label>
+                <span class="text-[10px] font-bold text-purple-600 bg-white px-1.5 py-0.2 rounded border border-purple-200">
+                  Default: PK modello
+                </span>
+              </div>
+              <input 
+                type="text" 
+                v-model="form.key_column" 
+                placeholder="es. id, codice, uuid" 
+                class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 transition" 
+              />
+            </div>
           </div>
-          <p class="text-[11px] text-slate-500">
-            Se la colonna che collega i nodi al genitore non si chiama <code>padre_id</code>, scrivi qui il nome esatto (es. <code>parent_id</code>, <code>id_padre</code>).
-          </p>
-          <input 
-            type="text" 
-            v-model="form.parent_column" 
-            placeholder="Lascia vuoto per usare il default ('padre_id')" 
-            class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono font-bold text-slate-900 bg-white focus:ring-2 focus:ring-indigo-500 transition" 
-          />
         </div>
       </div>
     </form>
@@ -199,6 +216,7 @@ const form = reactive({
   filterable_id: '',  
   include_children: false,
   parent_column: '',
+  key_column: '',
   group: 1 
 });
 
@@ -224,7 +242,8 @@ const availableCriteria = computed(() => {
         scope_filter: def.scope_filter,
         name: formatClassName(def.scope_filter),
         target_models: [],
-        parent_column: def.parent_column || null
+        parent_column: def.parent_column || null,
+        key_column: def.key_column || null
       };
     }
     const modelName = formatClassName(def.model_class);
@@ -234,6 +253,9 @@ const availableCriteria = computed(() => {
     if (def.parent_column && !map[def.scope_filter].parent_column) {
       map[def.scope_filter].parent_column = def.parent_column;
     }
+    if (def.key_column && !map[def.scope_filter].key_column) {
+      map[def.scope_filter].key_column = def.key_column;
+    }
   });
 
   // Salvaguardia: se il filtro in modifica ha un criterio non presente nelle definizioni attive
@@ -242,7 +264,8 @@ const availableCriteria = computed(() => {
       scope_filter: props.editingFilter.filterable_type,
       name: formatClassName(props.editingFilter.filterable_type),
       target_models: [],
-      parent_column: props.editingFilter.parent_column || null
+      parent_column: props.editingFilter.parent_column || null,
+      key_column: props.editingFilter.key_column || null
     };
   }
 
@@ -256,6 +279,7 @@ const resetForm = () => {
   form.group = 1;
   form.include_children = false;
   form.parent_column = '';
+  form.key_column = '';
 };
 
 const onScopeChange = () => {
@@ -265,6 +289,9 @@ const onScopeChange = () => {
   const crit = availableCriteria.value.find(c => c.scope_filter === form.filterable_type);
   if (crit && crit.parent_column && !form.parent_column) {
     form.parent_column = crit.parent_column;
+  }
+  if (crit && crit.key_column && !form.key_column) {
+    form.key_column = crit.key_column;
   }
 };
 
@@ -288,6 +315,7 @@ watch(() => props.editingFilter, (newFilter) => {
     form.group = newFilter.group !== undefined ? Number(newFilter.group) : 1;
     form.include_children = Boolean(newFilter.include_children);
     form.parent_column = newFilter.parent_column || '';
+    form.key_column = newFilter.key_column || '';
   } else {
     resetForm();
   }
