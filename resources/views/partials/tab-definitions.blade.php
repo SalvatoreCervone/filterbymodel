@@ -283,11 +283,11 @@
                 >
               </div>
               <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Chiave Nodo (opzionale)</label>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Chiave Collegata per Sviluppo Padre-Figlio (opzionale)</label>
                 <input 
                   v-model="form.key_column" 
                   type="text" 
-                  placeholder="es. id, codice o uuid" 
+                  placeholder="es. id, codice o uuid (default PK)" 
                   class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600"
                 >
               </div>

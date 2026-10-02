@@ -486,13 +486,13 @@
                   </div>
                   <div>
                     <label class="block text-[11px] font-bold text-slate-700 mb-1">
-                      Colonna Chiave / Identificativo Nodo
+                      Chiave Collegata per Sviluppo Padre-Figlio (opzionale)
                     </label>
                     <input 
                       type="text" 
                       v-model="form.key_column" 
                       class="w-full border-2 border-slate-300 rounded-xl p-2.5 text-xs font-mono bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm" 
-                      placeholder="Lascia vuoto per PK modello (es. id, codice)" 
+                      placeholder="es. id, codice o uuid (default PK modello)" 
                     />
                   </div>
                 </div>

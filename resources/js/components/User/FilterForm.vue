@@ -168,7 +168,7 @@
             <div>
               <div class="flex items-center justify-between mb-1">
                 <label class="block text-xs font-bold text-slate-800">
-                  Colonna Chiave Nodo
+                  Chiave Collegata per Sviluppo Padre-Figlio
                 </label>
                 <span class="text-[10px] font-bold text-purple-600 bg-white px-1.5 py-0.2 rounded border border-purple-200">
                   Default: PK modello

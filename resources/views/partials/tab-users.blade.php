@@ -415,24 +415,50 @@
             </div>
           </div>
 
-          <div v-if="userForm.include_children" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Gerarchica Padre (opzionale)</label>
-              <input 
-                v-model="userForm.parent_column" 
-                type="text" 
-                placeholder="es. padre_id (default automatico)"
-                class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600"
-              >
+          <!-- BOX GERARCHIA ALBERO PADRE-FIGLIO -->
+          <div v-if="userForm.include_children" class="p-4 bg-indigo-50/70 rounded-2xl border border-indigo-200 shadow-sm space-y-3 transition-all duration-200">
+            <div class="flex items-center justify-between pb-2 border-b border-indigo-100">
+              <div class="flex items-center gap-2">
+                <div class="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 19h-4a2 2 0 01-2-2V7a2 2 0 012-2h4"/>
+                    <path d="M7 12h4"/>
+                    <circle cx="19" cy="5" r="2"/>
+                    <circle cx="19" cy="19" r="2"/>
+                    <circle cx="5" cy="12" r="2"/>
+                  </svg>
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold text-slate-800 tracking-tight">Configurazione Gerarchia Albero</h4>
+                  <p class="text-[10px] text-slate-500">Definisci i campi per sviluppare la relazione padre-figlio ricorsiva</p>
+                </div>
+              </div>
+              <span class="text-[10px] font-bold text-indigo-700 bg-white border border-indigo-200 px-2 py-0.5 rounded-full shadow-sm">
+                Gerarchia Attiva
+              </span>
             </div>
-            <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Chiave Nodo (opzionale)</label>
-              <input 
-                v-model="userForm.key_column" 
-                type="text" 
-                placeholder="es. id, codice (default PK)"
-                class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600"
-              >
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Colonna Gerarchica Padre (opzionale)</label>
+                <input 
+                  v-model="userForm.parent_column" 
+                  type="text" 
+                  placeholder="es. padre_id (default automatico)"
+                  class="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm"
+                >
+                <p class="text-[10px] text-slate-500 mt-1">Colonna che punta al record genitore (es. padre_id).</p>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Chiave Collegata per Sviluppo Padre-Figlio (opzionale)</label>
+                <input 
+                  v-model="userForm.key_column" 
+                  type="text" 
+                  placeholder="es. id, codice (default PK modello)"
+                  class="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs font-mono font-medium focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 shadow-sm"
+                >
+                <p class="text-[10px] text-slate-500 mt-1">Nome della chiave del nodo a cui punta il campo padre per sviluppare l'albero.</p>
+              </div>
             </div>
           </div>
 
