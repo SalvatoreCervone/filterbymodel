@@ -102,8 +102,8 @@
                 <span v-if="u.is_bypassed" class="px-1.5 py-0.5 bg-amber-100 text-amber-700 border border-amber-200 rounded text-[9px] font-extrabold uppercase tracking-wide">Bypass</span>
               </div>
               <div class="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
-                <span v-if="u.email" class="text-indigo-600 font-medium">@{{ u.email }}</span>
-                <span v-else-if="u.sublabel" class="text-slate-500 font-medium">@{{ u.sublabel }}</span>
+                <span v-if="u.sublabel" class="text-indigo-600 font-medium">@{{ u.sublabel }}</span>
+                <span v-else-if="u.email" class="text-indigo-600 font-medium">@{{ u.email }}</span>
                 <span class="text-slate-300">•</span>
                 <span class="text-slate-400">ID: @{{ u.id }}</span>
               </div>

@@ -1065,35 +1065,37 @@ class ModelFilterService
     {
         $modelsConfig = config('filterbymodel.users.models', []);
 
-        // Se è specificato un tipo e lo troviamo nella configurazione
-        if ($userType && isset($modelsConfig[$userType])) {
-            return array_merge(['class' => $userType], $modelsConfig[$userType]);
-        }
-
-        // Fallback: primo modello configurato
-        foreach ($modelsConfig as $class => $config) {
-            return array_merge(['class' => $class], $config);
-        }
-
-        // Fallback finale: configurazione legacy dalla sezione 'user'
-        return [
+        $legacyConfig = [
             'class'       => config('filterbymodel.user.model', 'App\Models\User'),
             'label'       => 'Utenti',
             'table'       => config('filterbymodel.user.table', 'users'),
             'foreign_key' => config('filterbymodel.user.foreign_key', 'user_id'),
             'primary_key' => config('filterbymodel.user.primary_key', 'id'),
-            'display'     => config('filterbymodel.user.display_fields', ['email']),
-            'separator'   => ' ',
-            'subtext'     => config('filterbymodel.user.secondary_fields', ['email']),
+            'display'     => config('filterbymodel.user.display_fields', config('filterbymodel.user.display', ['name'])),
+            'separator'   => config('filterbymodel.user.separator', ' '),
+            'subtext'     => config('filterbymodel.user.secondary_fields', config('filterbymodel.user.subtext', ['email'])),
             'searchable'  => config('filterbymodel.user.searchable_fields', ['name', 'email']),
         ];
+
+        // Se è specificato un tipo e lo troviamo nella configurazione
+        if ($userType && isset($modelsConfig[$userType])) {
+            return array_merge($legacyConfig, ['class' => $userType], $modelsConfig[$userType]);
+        }
+
+        // Fallback: primo modello configurato
+        foreach ($modelsConfig as $class => $config) {
+            return array_merge($legacyConfig, ['class' => $class], $config);
+        }
+
+        // Fallback finale: configurazione legacy dalla sezione 'user'
+        return $legacyConfig;
     }
 
     /**
      * Formatta i campi di un utente per la visualizzazione usando la configurazione 'display' (array di campi).
      *
      * @param object|array $row       Riga dell'utente
-     * @param array        $userConfig Configurazione del modello utente (dalla sezione users.models)
+     * @param array        $userConfig Configurazione del modello utente (dalla sezione users.models o user)
      * @param string|null  $idField   Campo ID (override manuale, se null usa config)
      * @return array ['id' => ..., 'label' => ..., 'sublabel' => ..., 'name' => ..., 'email' => ...]
      */
@@ -1114,8 +1116,8 @@ class ModelFilterService
 
         $id = $getValue($idCol) ?? (is_object($row) ? ($row->id ?? null) : ($row['id'] ?? null));
 
-        // 1. Risoluzione Etichetta Principale: concatena i campi definiti in 'display'
-        $displayFields = (array) ($userConfig['display'] ?? ['email']);
+        // 1. Risoluzione Etichetta Principale: concatena i campi definiti in 'display' / 'display_fields'
+        $displayFields = (array) ($userConfig['display'] ?? $userConfig['display_fields'] ?? config('filterbymodel.user.display_fields', ['name']));
         $separator = $userConfig['separator'] ?? ' ';
         $labelParts = [];
         foreach ($displayFields as $field) {
@@ -1128,7 +1130,7 @@ class ModelFilterService
 
         // Fallback progressivo se il display non produce risultato
         if (empty($label)) {
-            // Prova i campi legacy (cognome + nome, name, email)
+            // Prova i campi noti (cognome + nome, name, email)
             $cognome = $getValue('cognome');
             $nome = $getValue('nome');
             if ($cognome && $nome) {
@@ -1144,8 +1146,8 @@ class ModelFilterService
             $label = $getValue('name') ?: $getValue('email') ?: "Utente #{$id}";
         }
 
-        // 2. Risoluzione Sottotesto: concatena i campi definiti in 'subtext'
-        $subtextFields = (array) ($userConfig['subtext'] ?? ['email']);
+        // 2. Risoluzione Sottotesto: concatena i campi definiti in 'subtext' / 'secondary_fields'
+        $subtextFields = (array) ($userConfig['subtext'] ?? $userConfig['secondary_fields'] ?? config('filterbymodel.user.secondary_fields', ['email']));
         $sublabelParts = [];
         foreach ($subtextFields as $field) {
             $val = $getValue($field);

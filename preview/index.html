@@ -1242,8 +1242,8 @@
                 <td class="p-4 pl-6">
                   <div class="font-bold text-slate-900">{{ u.label || u.name || 'Utente #' + u.id }}</div>
                   <div class="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
-                    <span v-if="u.email" class="text-indigo-600 font-medium">{{ u.email }}</span>
-                    <span v-else-if="u.sublabel" class="text-slate-500 font-medium">{{ u.sublabel }}</span>
+                    <span v-if="u.sublabel" class="text-indigo-600 font-medium">{{ u.sublabel }}</span>
+                    <span v-else-if="u.email" class="text-indigo-600 font-medium">{{ u.email }}</span>
                     <span class="text-slate-300">•</span>
                     <span class="text-slate-400">ID: {{ u.id }}</span>
                   </div>
