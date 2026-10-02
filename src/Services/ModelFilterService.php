@@ -1063,32 +1063,48 @@ class ModelFilterService
      */
     public function resolveUserModelConfig(?string $userType = null): array
     {
-        $modelsConfig = config('filterbymodel.users.models', []);
+        $modelsConfig = (array) config('filterbymodel.users.models', []);
+        $userSection  = (array) config('filterbymodel.user', []);
+
+        $userDisplay   = $userSection['display_fields'] ?? $userSection['display'] ?? null;
+        $userSubtext   = $userSection['secondary_fields'] ?? $userSection['subtext'] ?? null;
+        $userSearchable= $userSection['searchable_fields'] ?? $userSection['searchable'] ?? null;
 
         $legacyConfig = [
-            'class'       => config('filterbymodel.user.model', 'App\Models\User'),
+            'class'       => $userSection['model'] ?? 'App\Models\User',
             'label'       => 'Utenti',
-            'table'       => config('filterbymodel.user.table', 'users'),
-            'foreign_key' => config('filterbymodel.user.foreign_key', 'user_id'),
-            'primary_key' => config('filterbymodel.user.primary_key', 'id'),
-            'display'     => config('filterbymodel.user.display_fields', config('filterbymodel.user.display', ['name'])),
-            'separator'   => config('filterbymodel.user.separator', ' '),
-            'subtext'     => config('filterbymodel.user.secondary_fields', config('filterbymodel.user.subtext', ['email'])),
-            'searchable'  => config('filterbymodel.user.searchable_fields', ['name', 'email']),
+            'table'       => $userSection['table'] ?? 'users',
+            'foreign_key' => $userSection['foreign_key'] ?? 'user_id',
+            'primary_key' => $userSection['primary_key'] ?? 'id',
+            'display'     => $userDisplay ?: ['name'],
+            'separator'   => $userSection['separator'] ?? ' ',
+            'subtext'     => $userSubtext ?: ['email'],
+            'searchable'  => $userSearchable ?: ['name', 'email'],
         ];
+
+        $targetConfig = $legacyConfig;
 
         // Se è specificato un tipo e lo troviamo nella configurazione
         if ($userType && isset($modelsConfig[$userType])) {
-            return array_merge($legacyConfig, ['class' => $userType], $modelsConfig[$userType]);
+            $targetConfig = array_merge($legacyConfig, ['class' => $userType], $modelsConfig[$userType]);
+        } elseif (!empty($modelsConfig)) {
+            // Fallback: primo modello configurato
+            foreach ($modelsConfig as $class => $config) {
+                $targetConfig = array_merge($legacyConfig, ['class' => $class], $config);
+                break;
+            }
         }
 
-        // Fallback: primo modello configurato
-        foreach ($modelsConfig as $class => $config) {
-            return array_merge($legacyConfig, ['class' => $class], $config);
+        // Se l'utente ha configurato esplicitamente display_fields o secondary_fields in 'user',
+        // questi devono avere sempre la priorità sui default di models
+        if (!empty($userDisplay)) {
+            $targetConfig['display'] = (array) $userDisplay;
+        }
+        if (!empty($userSubtext)) {
+            $targetConfig['subtext'] = (array) $userSubtext;
         }
 
-        // Fallback finale: configurazione legacy dalla sezione 'user'
-        return $legacyConfig;
+        return $targetConfig;
     }
 
     /**
@@ -1103,8 +1119,13 @@ class ModelFilterService
     {
         $idCol = $idField ?: ($userConfig['primary_key'] ?? 'id');
 
+        // Estrazione del valore esatto per il campo configurato (nessuna deduzione o sinonimo)
         $getValue = function ($field) use ($row) {
             if (is_object($row)) {
+                if ($row instanceof \Illuminate\Database\Eloquent\Model) {
+                    $val = $row->getAttribute($field);
+                    return $val !== null && trim((string) $val) !== '' ? trim((string) $val) : null;
+                }
                 return isset($row->{$field}) && $row->{$field} !== null && trim((string) $row->{$field}) !== ''
                     ? trim((string) $row->{$field})
                     : null;
@@ -1116,7 +1137,7 @@ class ModelFilterService
 
         $id = $getValue($idCol) ?? (is_object($row) ? ($row->id ?? null) : ($row['id'] ?? null));
 
-        // 1. Risoluzione Etichetta Principale: concatena i campi definiti in 'display' / 'display_fields'
+        // 1. Risoluzione Etichetta Principale: concatena ESCLUSIVAMENTE i campi definiti dall'utente
         $displayFields = (array) ($userConfig['display'] ?? $userConfig['display_fields'] ?? config('filterbymodel.user.display_fields', ['name']));
         $separator = $userConfig['separator'] ?? ' ';
         $labelParts = [];
@@ -1128,22 +1149,9 @@ class ModelFilterService
         }
         $label = implode($separator, $labelParts);
 
-        // Fallback progressivo se il display non produce risultato
+        // Fallback di sicurezza solo se tutti i campi configurati sono null/vuoti
         if (empty($label)) {
-            // Prova i campi noti (cognome + nome, name, email)
-            $cognome = $getValue('cognome');
-            $nome = $getValue('nome');
-            if ($cognome && $nome) {
-                $label = "{$cognome} {$nome}";
-            } elseif ($cognome) {
-                $label = $cognome;
-            } elseif ($nome) {
-                $label = $nome;
-            }
-        }
-
-        if (empty($label)) {
-            $label = $getValue('name') ?: $getValue('email') ?: "Utente #{$id}";
+            $label = "Utente #{$id}";
         }
 
         // 2. Risoluzione Sottotesto: concatena i campi definiti in 'subtext' / 'secondary_fields'
