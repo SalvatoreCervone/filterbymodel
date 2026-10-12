@@ -494,9 +494,7 @@ class ModelFilterService
                     $query->select(DB::raw(1))
                         ->from($pivotTable)
                         ->whereRaw("{$wrappedTarget} LIKE {$concatExpr}")
-                        ->where(function ($filterQ) use ($fullFilterKey, $byOperator) {
-                            $this->applicaFiltroValoriCriterio($filterQ, $fullFilterKey, $byOperator['LIKE'], 'LIKE');
-                        });
+                        ->whereIn($fullFilterKey, $byOperator['LIKE']);
 
                     if (!$skipAdditional && !empty($data['additional_where'])) {
                         $this->applicaCondizioniAggiuntive($query, $data['additional_where']);
@@ -519,9 +517,7 @@ class ModelFilterService
                     $query->select(DB::raw(1))
                         ->from($pivotTable)
                         ->whereRaw("{$wrappedPivotFk} LIKE {$concatExpr}")
-                        ->where(function ($filterQ) use ($fullFilterKey, $byOperator) {
-                            $this->applicaFiltroValoriCriterio($filterQ, $fullFilterKey, $byOperator['LIKE_REVERSE'], 'LIKE_REVERSE');
-                        });
+                        ->whereIn($fullFilterKey, $byOperator['LIKE_REVERSE']);
 
                     if (!$skipAdditional && !empty($data['additional_where'])) {
                         $this->applicaCondizioniAggiuntive($query, $data['additional_where']);
@@ -541,40 +537,6 @@ class ModelFilterService
                         $this->applicaCondizioniAggiuntive($query, $data['additional_where']);
                     }
                 });
-            }
-        });
-    }
-
-    /**
-     * Applica i valori del criterio autorizzato dentro la subquery pivot.
-     */
-    protected function applicaFiltroValoriCriterio($query, string $colonna, array $valori, string $operatore = '='): void
-    {
-        $exactValues = [];
-        $likePatterns = [];
-
-        foreach ($valori as $v) {
-            $vStr = (string) $v;
-            if ($operatore === 'LIKE' || str_contains($vStr, '%')) {
-                $likePatterns[] = str_contains($vStr, '%') ? $vStr : $vStr . '%';
-            } else {
-                $exactValues[] = $v;
-            }
-        }
-
-        $query->where(function ($q) use ($colonna, $exactValues, $likePatterns) {
-            $first = true;
-            if (!empty($exactValues)) {
-                $q->whereIn($colonna, $exactValues);
-                $first = false;
-            }
-            foreach ($likePatterns as $pat) {
-                if ($first) {
-                    $q->where($colonna, 'LIKE', $pat);
-                    $first = false;
-                } else {
-                    $q->orWhere($colonna, 'LIKE', $pat);
-                }
             }
         });
     }
@@ -676,9 +638,7 @@ class ModelFilterService
                             $wrappedFk = DB::connection()->getQueryGrammar()->wrap($data['pivot_foreign_key']);
                             $concatExpr = $this->sqlConcatWithWildcard($wrappedFk, '%');
                             $sub->whereRaw("? LIKE {$concatExpr}", [(string) $recordKey])
-                                ->where(function ($filterQ) use ($data, $byOperator) {
-                                    $this->applicaFiltroValoriCriterio($filterQ, $data['filter_key'], $byOperator['LIKE'], 'LIKE');
-                                });
+                                ->whereIn($data['filter_key'], $byOperator['LIKE']);
                         });
                         $first = false;
                     }
@@ -687,9 +647,7 @@ class ModelFilterService
                         $q->{$method}(function ($sub) use ($data, $recordKey, $byOperator) {
                             $wrappedFk = DB::connection()->getQueryGrammar()->wrap($data['pivot_foreign_key']);
                             $sub->whereRaw("{$wrappedFk} LIKE ?", [(string) $recordKey . '%'])
-                                ->where(function ($filterQ) use ($data, $byOperator) {
-                                    $this->applicaFiltroValoriCriterio($filterQ, $data['filter_key'], $byOperator['LIKE_REVERSE'], 'LIKE_REVERSE');
-                                });
+                                ->whereIn($data['filter_key'], $byOperator['LIKE_REVERSE']);
                         });
                         $first = false;
                     }
