@@ -741,12 +741,12 @@
 <template v-else>
   <span v-if="form.operator === 'LIKE'">  <span class="text-pink-400 font-bold">EXISTS</span> (
     <span class="text-pink-400 font-bold">SELECT</span> 1 <span class="text-pink-400 font-bold">FROM</span> <span class="text-sky-300 font-bold" :class="[focusedField === 'pivot_table' ? 'bg-sky-400/30 px-1 rounded' : '']">{{ form.pivot_table || 'tabella_ponte' }}</span> 
-    <span class="text-pink-400 font-bold">WHERE</span> <span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-amber-300 font-bold" :class="[focusedField === 'target_foreign_key' ? 'bg-amber-400/30 px-1 rounded' : '']">{{ form.target_foreign_key || 'id' }}</span> <span class="text-pink-400 font-bold">LIKE</span> <span class="text-sky-300">{{ form.pivot_table || 'tabella_ponte' }}</span>.<span class="text-amber-300 font-semibold" :class="[focusedField === 'pivot_foreign_key' ? 'bg-amber-400/30 px-1 rounded' : '']">{{ form.pivot_foreign_key || 'colonna_scheda' }}</span>
+    <span class="text-pink-400 font-bold">WHERE</span> <span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-amber-300 font-bold" :class="[focusedField === 'target_foreign_key' ? 'bg-amber-400/30 px-1 rounded' : '']">{{ form.target_foreign_key || 'id' }}</span> <span class="text-pink-400 font-bold">LIKE</span> CONCAT(<span class="text-sky-300">{{ form.pivot_table || 'tabella_ponte' }}</span>.<span class="text-amber-300 font-semibold" :class="[focusedField === 'pivot_foreign_key' ? 'bg-amber-400/30 px-1 rounded' : '']">{{ form.pivot_foreign_key || 'colonna_scheda' }}</span>, <span class="text-emerald-300">'%'</span>)
     <span class="text-pink-400 font-bold">AND</span> <span class="text-sky-300">{{ form.pivot_table || 'tabella_ponte' }}</span>.<span class="text-emerald-400 font-bold" :class="[focusedField === 'filter_key' ? 'bg-emerald-400/30 px-1 rounded' : '']">{{ form.filter_key || 'colonna_filtro' }}</span> <span class="text-pink-400 font-bold">IN</span> (<span class="text-emerald-300 font-semibold">:elenco_id_autorizzati_utente</span>)<span v-if="hasAdditionalWhereClause"><br>    <span class="text-pink-400 font-bold">AND</span> <span class="text-sky-300">{{ additionalWhereSql }}</span></span>
   )</span>
   <span v-else-if="form.operator === 'LIKE_REVERSE'">  <span class="text-pink-400 font-bold">EXISTS</span> (
     <span class="text-pink-400 font-bold">SELECT</span> 1 <span class="text-pink-400 font-bold">FROM</span> <span class="text-sky-300 font-bold" :class="[focusedField === 'pivot_table' ? 'bg-sky-400/30 px-1 rounded' : '']">{{ form.pivot_table || 'tabella_ponte' }}</span> 
-    <span class="text-pink-400 font-bold">WHERE</span> <span class="text-sky-300">{{ form.pivot_table || 'tabella_ponte' }}</span>.<span class="text-amber-300 font-semibold" :class="[focusedField === 'pivot_foreign_key' ? 'bg-amber-400/30 px-1 rounded' : '']">{{ form.pivot_foreign_key || 'colonna_scheda' }}</span> <span class="text-pink-400 font-bold">LIKE</span> <span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-amber-300 font-bold" :class="[focusedField === 'target_foreign_key' ? 'bg-amber-400/30 px-1 rounded' : '']">{{ form.target_foreign_key || 'id' }}</span>
+    <span class="text-pink-400 font-bold">WHERE</span> <span class="text-sky-300">{{ form.pivot_table || 'tabella_ponte' }}</span>.<span class="text-amber-300 font-semibold" :class="[focusedField === 'pivot_foreign_key' ? 'bg-amber-400/30 px-1 rounded' : '']">{{ form.pivot_foreign_key || 'colonna_scheda' }}</span> <span class="text-pink-400 font-bold">LIKE</span> CONCAT(<span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-amber-300 font-bold" :class="[focusedField === 'target_foreign_key' ? 'bg-amber-400/30 px-1 rounded' : '']">{{ form.target_foreign_key || 'id' }}</span>, <span class="text-emerald-300">'%'</span>)
     <span class="text-pink-400 font-bold">AND</span> <span class="text-sky-300">{{ form.pivot_table || 'tabella_ponte' }}</span>.<span class="text-emerald-400 font-bold" :class="[focusedField === 'filter_key' ? 'bg-emerald-400/30 px-1 rounded' : '']">{{ form.filter_key || 'colonna_filtro' }}</span> <span class="text-pink-400 font-bold">IN</span> (<span class="text-emerald-300 font-semibold">:elenco_id_autorizzati_utente</span>)<span v-if="hasAdditionalWhereClause"><br>    <span class="text-pink-400 font-bold">AND</span> <span class="text-sky-300">{{ additionalWhereSql }}</span></span>
   )</span>
   <span v-else>  <span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-amber-300 font-bold" :class="[focusedField === 'target_foreign_key' ? 'bg-amber-400/30 px-1 rounded' : '']">{{ form.target_foreign_key || 'id' }}</span> <span class="text-pink-400 font-bold">IN</span> (
@@ -781,11 +781,11 @@ $autorizzato = collect($idAutorizzati)->contains(fn($pat) => str_starts_with($pa
 }</span></template>
 <template v-else>// Verifica esistenza dell'associazione nella tabella ponte:
 <span v-if="form.operator === 'LIKE'">$autorizzato = DB::table('<span class="text-sky-300 font-bold">{{ form.pivot_table || 'tabella_ponte' }}</span>')
-    ->whereRaw('? LIKE <span class="text-amber-300 font-bold">{{ form.pivot_foreign_key || "colonna_scheda" }}</span>', [$record->{{ form.target_foreign_key ? form.target_foreign_key : 'getKey()' }}])
+    ->whereRaw('? LIKE CONCAT(<span class="text-amber-300 font-bold">{{ form.pivot_foreign_key || "colonna_scheda" }}</span>, "%")', [$record->{{ form.target_foreign_key ? form.target_foreign_key : 'getKey()' }}])
     ->whereIn('<span class="text-emerald-300 font-bold">{{ form.filter_key || "colonna_filtro" }}</span>', $idAutorizzatiUtente)
     ->exists();</span>
 <span v-else-if="form.operator === 'LIKE_REVERSE'">$autorizzato = DB::table('<span class="text-sky-300 font-bold">{{ form.pivot_table || 'tabella_ponte' }}</span>')
-    ->whereRaw('<span class="text-amber-300 font-bold">{{ form.pivot_foreign_key || "colonna_scheda" }}</span> LIKE ?', [$record->{{ form.target_foreign_key ? form.target_foreign_key : 'getKey()' }}])
+    ->whereRaw('<span class="text-amber-300 font-bold">{{ form.pivot_foreign_key || "colonna_scheda" }}</span> LIKE ?', [$record->{{ form.target_foreign_key ? form.target_foreign_key : 'getKey()' }} . '%'])
     ->whereIn('<span class="text-emerald-300 font-bold">{{ form.filter_key || "colonna_filtro" }}</span>', $idAutorizzatiUtente)
     ->exists();</span>
 <span v-else>$autorizzato = DB::table('<span class="text-sky-300 font-bold">{{ form.pivot_table || 'tabella_ponte' }}</span>')
@@ -808,25 +808,25 @@ if (!$autorizzato) {
 
             <div class="bg-black/60 rounded-xl p-4 font-mono text-xs text-purple-200 border border-slate-800 overflow-x-auto leading-relaxed whitespace-pre-wrap">
 $builder->where(function (Builder $subQuery) {
-<template v-if="!form.has_pivot"><span v-if="form.operator === 'LIKE'">    // Match LIKE Diretto su colonna
+<template v-if="!form.has_pivot"><span v-if="form.operator === 'LIKE'">    // Match LIKE Diretto su colonna con wildcard %
     $subQuery->where(function ($q) use ($allowedIds) {
         foreach ($allowedIds as $id) { $q->orWhere('<span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-emerald-300 font-bold">{{ form.filter_key || 'colonna_filtro' }}</span>', 'LIKE', $id . '%'); }
     });</span>
-<span v-else-if="form.operator === 'LIKE_REVERSE'">    // Match LIKE Controcorrente su colonna
+<span v-else-if="form.operator === 'LIKE_REVERSE'">    // Match LIKE Controcorrente su colonna con wildcard %
     $subQuery->where(function ($q) use ($allowedIds) {
-        foreach ($allowedIds as $id) { $q->orWhereRaw('? LIKE <span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-emerald-300 font-bold">{{ form.filter_key || 'colonna_filtro' }}</span>', [$id]); }
+        foreach ($allowedIds as $id) { $q->orWhereRaw('? LIKE CONCAT(<span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-emerald-300 font-bold">{{ form.filter_key || 'colonna_filtro' }}</span>, "%")', [$id]); }
     });</span>
 <span v-else>    $subQuery->whereIn('<span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-emerald-300 font-bold">{{ form.filter_key || 'colonna_filtro' }}</span>', $allowedIds);</span></template>
-<template v-else><span v-if="form.operator === 'LIKE'">    // Subquery WHERE EXISTS con match LIKE Diretto
+<template v-else><span v-if="form.operator === 'LIKE'">    // Subquery WHERE EXISTS con match LIKE Diretto su colonna pivot con wildcard %
     $subQuery->whereExists(function ($query) {
         $query->select(DB::raw(1))->from('<span class="text-sky-300 font-bold">{{ form.pivot_table || "tabella_ponte" }}</span>')
-              ->whereColumn('<span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-amber-300 font-bold">{{ form.target_foreign_key || "id" }}</span>', 'LIKE', '<span class="text-sky-300 font-bold">{{ form.pivot_table || "tabella_ponte" }}</span>.<span class="text-amber-300 font-bold">{{ form.pivot_foreign_key || "colonna_scheda" }}</span>')
+              ->whereRaw('<span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-amber-300 font-bold">{{ form.target_foreign_key || "id" }}</span> LIKE CONCAT(<span class="text-sky-300 font-bold">{{ form.pivot_table || "tabella_ponte" }}</span>.<span class="text-amber-300 font-bold">{{ form.pivot_foreign_key || "colonna_scheda" }}</span>, "%")')
               ->whereIn('<span class="text-emerald-300 font-bold">{{ form.filter_key || "colonna_filtro" }}</span>', $allowedIds);
     });</span>
-<span v-else-if="form.operator === 'LIKE_REVERSE'">    // Subquery WHERE EXISTS con match LIKE Inverso (Controcorrente)
+<span v-else-if="form.operator === 'LIKE_REVERSE'">    // Subquery WHERE EXISTS con match LIKE Inverso (Controcorrente) con wildcard %
     $subQuery->whereExists(function ($query) {
         $query->select(DB::raw(1))->from('<span class="text-sky-300 font-bold">{{ form.pivot_table || "tabella_ponte" }}</span>')
-              ->whereColumn('<span class="text-sky-300 font-bold">{{ form.pivot_table || "tabella_ponte" }}</span>.<span class="text-amber-300 font-bold">{{ form.pivot_foreign_key || "colonna_scheda" }}</span>', 'LIKE', '<span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-amber-300 font-bold">{{ form.target_foreign_key || "id" }}</span>')
+              ->whereRaw('<span class="text-sky-300 font-bold">{{ form.pivot_table || "tabella_ponte" }}</span>.<span class="text-amber-300 font-bold">{{ form.pivot_foreign_key || "colonna_scheda" }}</span> LIKE CONCAT(<span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-amber-300 font-bold">{{ form.target_foreign_key || "id" }}</span>, "%")')
               ->whereIn('<span class="text-emerald-300 font-bold">{{ form.filter_key || "colonna_filtro" }}</span>', $allowedIds);
     });</span>
 <span v-else>    $subQuery->whereIn('<span class="text-amber-300">{{ targetTableName }}</span>.<span class="text-amber-300 font-bold">{{ form.target_foreign_key || 'id' }}</span>', function ($query) {

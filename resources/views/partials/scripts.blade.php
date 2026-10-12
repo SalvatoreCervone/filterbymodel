@@ -315,7 +315,7 @@
           if (op === 'LIKE') {
             return `SELECT * FROM \`${table}\`\nWHERE (\`${table}\`.\`${filterCol}\` LIKE '1%' OR \`${table}\`.\`${filterCol}\` LIKE '2%' OR \`${table}\`.\`${filterCol}\` LIKE '5%')${extraSqlDirect};`;
           } else if (op === 'LIKE_REVERSE') {
-            return `SELECT * FROM \`${table}\`\nWHERE ('1' LIKE \`${table}\`.\`${filterCol}\` OR '2' LIKE \`${table}\`.\`${filterCol}\` OR '5' LIKE \`${table}\`.\`${filterCol}\`)${extraSqlDirect};`;
+            return `SELECT * FROM \`${table}\`\nWHERE ('1' LIKE CONCAT(\`${table}\`.\`${filterCol}\`, '%') OR '2' LIKE CONCAT(\`${table}\`.\`${filterCol}\`, '%') OR '5' LIKE CONCAT(\`${table}\`.\`${filterCol}\`, '%'))${extraSqlDirect};`;
           } else {
             return `SELECT * FROM \`${table}\`\nWHERE \`${table}\`.\`${filterCol}\` IN (1, 2, 5)${extraSqlDirect};`;
           }
@@ -324,9 +324,9 @@
           const pivotFk = form.pivot_foreign_key || (targetModel?.foreign_key || `${formatClassName(form.model_class).toLowerCase()}_id`);
 
           if (op === 'LIKE') {
-            return `SELECT * FROM \`${table}\`\nWHERE EXISTS (\n  SELECT 1 FROM \`${pivot}\`\n  WHERE \`${table}\`.\`${targetKey}\` LIKE \`${pivot}\`.\`${pivotFk}\`\n  AND \`${pivot}\`.\`${filterCol}\` IN (1, 2, 5)${extraSqlPivot}\n);`;
+            return `SELECT * FROM \`${table}\`\nWHERE EXISTS (\n  SELECT 1 FROM \`${pivot}\`\n  WHERE \`${table}\`.\`${targetKey}\` LIKE CONCAT(\`${pivot}\`.\`${pivotFk}\`, '%')\n  AND \`${pivot}\`.\`${filterCol}\` IN (1, 2, 5)${extraSqlPivot}\n);`;
           } else if (op === 'LIKE_REVERSE') {
-            return `SELECT * FROM \`${table}\`\nWHERE EXISTS (\n  SELECT 1 FROM \`${pivot}\`\n  WHERE \`${pivot}\`.\`${pivotFk}\` LIKE \`${table}\`.\`${targetKey}\`\n  AND \`${pivot}\`.\`${filterCol}\` IN (1, 2, 5)${extraSqlPivot}\n);`;
+            return `SELECT * FROM \`${table}\`\nWHERE EXISTS (\n  SELECT 1 FROM \`${pivot}\`\n  WHERE \`${pivot}\`.\`${pivotFk}\` LIKE CONCAT(\`${table}\`.\`${targetKey}\`, '%')\n  AND \`${pivot}\`.\`${filterCol}\` IN (1, 2, 5)${extraSqlPivot}\n);`;
           } else {
             return `SELECT * FROM \`${table}\`\nWHERE EXISTS (\n  SELECT 1 FROM \`${pivot}\`\n  WHERE \`${pivot}\`.\`${pivotFk}\` = \`${table}\`.\`${targetKey}\`\n  AND \`${pivot}\`.\`${filterCol}\` IN (1, 2, 5)${extraSqlPivot}\n);`;
           }

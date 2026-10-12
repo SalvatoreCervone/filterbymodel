@@ -78,7 +78,8 @@
             v-model="form.operator" 
             class="w-full border border-slate-300 rounded-xl p-2.5 bg-slate-50/70 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition" 
           >
-            <option value="=">= Uguale</option>
+            <option value="">Eredita dalla Regola</option>
+            <option value="=">= Uguale (Forzato)</option>
             <option value="LIKE">LIKE Diretto</option>
             <option value="LIKE_REVERSE">LIKE Inverso</option>
           </select>
@@ -247,7 +248,7 @@ const form = reactive({
   filterable_type: '', 
   target_model: '',
   filterable_id: '',  
-  operator: '=',
+  operator: '',
   include_children: false,
   parent_column: '',
   key_column: '',
@@ -325,7 +326,7 @@ const resetForm = () => {
   form.filterable_type = '';
   form.target_model = '';
   form.filterable_id = '';
-  form.operator = '=';
+  form.operator = '';
   form.group = 1;
   form.include_children = false;
   form.parent_column = '';

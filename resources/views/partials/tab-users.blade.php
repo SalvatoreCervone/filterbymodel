@@ -409,12 +409,13 @@
               v-model="userForm.operator"
               class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-semibold text-slate-800 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 bg-white"
             >
-              <option value="=">= Uguale Esatto (Standard relazionale / veloce)</option>
-              <option value="LIKE">LIKE Diretto (Tabella protetta LIKE Valore/Pivot)</option>
-              <option value="LIKE_REVERSE">LIKE Inverso / Controcorrente (Valore/Pivot LIKE Tabella protetta)</option>
+              <option value="">-- Eredita dalla Regola del Modello (Predefinito) --</option>
+              <option value="=">= Uguale Esatto (Forzato)</option>
+              <option value="LIKE">LIKE Diretto (Forzato: Tabella protetta LIKE Valore/Pivot)</option>
+              <option value="LIKE_REVERSE">LIKE Inverso / Controcorrente (Forzato: Valore/Pivot LIKE Tabella protetta)</option>
             </select>
             <p class="text-[10px] text-slate-400 mt-1">
-              Imposta se confrontare tramite uguaglianza standard (=) o tramite pattern/prefissi (LIKE diretto o inverso in controcorrente).
+              Se non specificato, eredita automaticamente l'operatore configurato nella regola del modello protetto.
             </p>
           </div>
 

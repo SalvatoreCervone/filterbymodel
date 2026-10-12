@@ -413,13 +413,15 @@ class ModelFilterService
 
             // 3. Operatore 'LIKE_REVERSE' Controcorrente: pattern autorizzato LIKE colonna DB
             if (!empty($byOperator['LIKE_REVERSE'])) {
+                $wrappedCol = $directQuery->getGrammar()->wrap($colonnaFiltroCompleta);
+                $concatCol = $this->sqlConcatWithWildcard($wrappedCol, '%');
                 foreach ($byOperator['LIKE_REVERSE'] as $val) {
                     $pattern = (string) $val;
                     if ($first) {
-                        $directQuery->whereRaw('? LIKE ' . $directQuery->getGrammar()->wrap($colonnaFiltroCompleta), [$pattern]);
+                        $directQuery->whereRaw("? LIKE {$concatCol}", [$pattern]);
                         $first = false;
                     } else {
-                        $directQuery->orWhereRaw('? LIKE ' . $directQuery->getGrammar()->wrap($colonnaFiltroCompleta), [$pattern]);
+                        $directQuery->orWhereRaw("? LIKE {$concatCol}", [$pattern]);
                     }
                 }
             }
@@ -478,18 +480,22 @@ class ModelFilterService
                 $first = false;
             }
 
-            // 2. MATCH 'LIKE' DIRETTO (Tabella Protetta LIKE Pivot) -> WHERE EXISTS
+            // 2. MATCH 'LIKE' DIRETTO (Tabella Protetta LIKE Pivot) -> WHERE EXISTS con wildcard %
             if (!empty($byOperator['LIKE'])) {
                 $method = $first ? 'whereExists' : 'orWhereExists';
                 $pivotOuter->{$method}(function ($query) use ($targetColumn, $pivotTable, $pivotForeignKey, $pivotFilterKey, $byOperator, $data, $skipAdditional) {
                     $fullPivotFk = $pivotTable . '.' . $pivotForeignKey;
                     $fullFilterKey = $pivotTable . '.' . $pivotFilterKey;
 
+                    $wrappedTarget = $query->getGrammar()->wrap($targetColumn);
+                    $wrappedPivotFk = $query->getGrammar()->wrap($fullPivotFk);
+                    $concatExpr = $this->sqlConcatWithWildcard($wrappedPivotFk, '%');
+
                     $query->select(DB::raw(1))
                         ->from($pivotTable)
-                        ->whereColumn($targetColumn, 'LIKE', $fullPivotFk)
+                        ->whereRaw("{$wrappedTarget} LIKE {$concatExpr}")
                         ->where(function ($filterQ) use ($fullFilterKey, $byOperator) {
-                            $this->applicaFiltroValoriCriterio($filterQ, $fullFilterKey, $byOperator['LIKE']);
+                            $this->applicaFiltroValoriCriterio($filterQ, $fullFilterKey, $byOperator['LIKE'], 'LIKE');
                         });
 
                     if (!$skipAdditional && !empty($data['additional_where'])) {
@@ -499,18 +505,22 @@ class ModelFilterService
                 $first = false;
             }
 
-            // 3. MATCH 'LIKE_REVERSE' CONTROCORRENTE (Pivot LIKE Tabella Protetta) -> WHERE EXISTS
+            // 3. MATCH 'LIKE_REVERSE' CONTROCORRENTE (Pivot LIKE Tabella Protetta) -> WHERE EXISTS con wildcard %
             if (!empty($byOperator['LIKE_REVERSE'])) {
                 $method = $first ? 'whereExists' : 'orWhereExists';
                 $pivotOuter->{$method}(function ($query) use ($targetColumn, $pivotTable, $pivotForeignKey, $pivotFilterKey, $byOperator, $data, $skipAdditional) {
                     $fullPivotFk = $pivotTable . '.' . $pivotForeignKey;
                     $fullFilterKey = $pivotTable . '.' . $pivotFilterKey;
 
+                    $wrappedTarget = $query->getGrammar()->wrap($targetColumn);
+                    $wrappedPivotFk = $query->getGrammar()->wrap($fullPivotFk);
+                    $concatExpr = $this->sqlConcatWithWildcard($wrappedTarget, '%');
+
                     $query->select(DB::raw(1))
                         ->from($pivotTable)
-                        ->whereColumn($fullPivotFk, 'LIKE', $targetColumn)
+                        ->whereRaw("{$wrappedPivotFk} LIKE {$concatExpr}")
                         ->where(function ($filterQ) use ($fullFilterKey, $byOperator) {
-                            $this->applicaFiltroValoriCriterio($filterQ, $fullFilterKey, $byOperator['LIKE_REVERSE']);
+                            $this->applicaFiltroValoriCriterio($filterQ, $fullFilterKey, $byOperator['LIKE_REVERSE'], 'LIKE_REVERSE');
                         });
 
                     if (!$skipAdditional && !empty($data['additional_where'])) {
@@ -538,15 +548,15 @@ class ModelFilterService
     /**
      * Applica i valori del criterio autorizzato dentro la subquery pivot.
      */
-    protected function applicaFiltroValoriCriterio($query, string $colonna, array $valori): void
+    protected function applicaFiltroValoriCriterio($query, string $colonna, array $valori, string $operatore = '='): void
     {
         $exactValues = [];
         $likePatterns = [];
 
         foreach ($valori as $v) {
             $vStr = (string) $v;
-            if (str_contains($vStr, '%')) {
-                $likePatterns[] = $vStr;
+            if ($operatore === 'LIKE' || str_contains($vStr, '%')) {
+                $likePatterns[] = str_contains($vStr, '%') ? $vStr : $vStr . '%';
             } else {
                 $exactValues[] = $v;
             }
@@ -567,6 +577,25 @@ class ModelFilterService
                 }
             }
         });
+    }
+
+    /**
+     * Genera l'espressione SQL di concatenazione di una colonna con wildcard '%'.
+     * Compatibile con MySQL, SQLite, PostgreSQL e SQL Server.
+     */
+    protected function sqlConcatWithWildcard(string $wrappedColumn, string $wildcard = '%'): string
+    {
+        try {
+            $driver = DB::connection()->getDriverName();
+        } catch (\Throwable $e) {
+            $driver = 'mysql';
+        }
+
+        if ($driver === 'sqlite') {
+            return "({$wrappedColumn} || '{$wildcard}')";
+        }
+
+        return "CONCAT({$wrappedColumn}, '{$wildcard}')";
     }
 
     /**
@@ -644,9 +673,11 @@ class ModelFilterService
                     if (!empty($byOperator['LIKE'])) {
                         $method = $first ? 'where' : 'orWhere';
                         $q->{$method}(function ($sub) use ($data, $recordKey, $byOperator) {
-                            $sub->whereRaw('? LIKE ' . DB::connection()->getQueryGrammar()->wrap($data['pivot_foreign_key']), [(string) $recordKey])
+                            $wrappedFk = DB::connection()->getQueryGrammar()->wrap($data['pivot_foreign_key']);
+                            $concatExpr = $this->sqlConcatWithWildcard($wrappedFk, '%');
+                            $sub->whereRaw("? LIKE {$concatExpr}", [(string) $recordKey])
                                 ->where(function ($filterQ) use ($data, $byOperator) {
-                                    $this->applicaFiltroValoriCriterio($filterQ, $data['filter_key'], $byOperator['LIKE']);
+                                    $this->applicaFiltroValoriCriterio($filterQ, $data['filter_key'], $byOperator['LIKE'], 'LIKE');
                                 });
                         });
                         $first = false;
@@ -654,9 +685,10 @@ class ModelFilterService
                     if (!empty($byOperator['LIKE_REVERSE'])) {
                         $method = $first ? 'where' : 'orWhere';
                         $q->{$method}(function ($sub) use ($data, $recordKey, $byOperator) {
-                            $sub->whereRaw(DB::connection()->getQueryGrammar()->wrap($data['pivot_foreign_key']) . ' LIKE ?', [(string) $recordKey])
+                            $wrappedFk = DB::connection()->getQueryGrammar()->wrap($data['pivot_foreign_key']);
+                            $sub->whereRaw("{$wrappedFk} LIKE ?", [(string) $recordKey . '%'])
                                 ->where(function ($filterQ) use ($data, $byOperator) {
-                                    $this->applicaFiltroValoriCriterio($filterQ, $data['filter_key'], $byOperator['LIKE_REVERSE']);
+                                    $this->applicaFiltroValoriCriterio($filterQ, $data['filter_key'], $byOperator['LIKE_REVERSE'], 'LIKE_REVERSE');
                                 });
                         });
                         $first = false;

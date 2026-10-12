@@ -49,7 +49,7 @@ class UserFilterController extends Controller
             'group'            => 'required|integer|min:1',
         ]);
 
-        $validated['operator'] = !empty($validated['operator']) ? $validated['operator'] : '=';
+        $validated['operator'] = !empty($validated['operator']) ? $validated['operator'] : null;
         $targetModel = !empty($validated['target_model']) ? $validated['target_model'] : null;
         $validated['target_model'] = $targetModel;
 
@@ -57,8 +57,13 @@ class UserFilterController extends Controller
         $query = UserFilter::where($userFk, $validated[$userFk])
             ->where('filterable_type', $validated['filterable_type'])
             ->where('filterable_id', $validated['filterable_id'])
-            ->where('group', $validated['group'])
-            ->where('operator', $validated['operator']);
+            ->where('group', $validated['group']);
+
+        if ($validated['operator'] !== null) {
+            $query->where('operator', $validated['operator']);
+        } else {
+            $query->whereNull('operator');
+        }
 
         if ($targetModel !== null) {
             $query->where('target_model', $targetModel);
@@ -97,7 +102,7 @@ class UserFilterController extends Controller
             'group'            => 'required|integer|min:1',
         ]);
 
-        $validated['operator'] = !empty($validated['operator']) ? $validated['operator'] : '=';
+        $validated['operator'] = !empty($validated['operator']) ? $validated['operator'] : null;
         $filter = UserFilter::findOrFail($id);
 
         $targetModel = !empty($validated['target_model']) ? $validated['target_model'] : null;
@@ -108,8 +113,13 @@ class UserFilterController extends Controller
             ->where('filterable_type', $validated['filterable_type'])
             ->where('filterable_id', $validated['filterable_id'])
             ->where('group', $validated['group'])
-            ->where('operator', $validated['operator'])
             ->where('id', '!=', $id);
+
+        if ($validated['operator'] !== null) {
+            $query->where('operator', $validated['operator']);
+        } else {
+            $query->whereNull('operator');
+        }
 
         if ($targetModel !== null) {
             $query->where('target_model', $targetModel);
