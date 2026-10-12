@@ -23,8 +23,8 @@ return new class extends Migration
         $userFilterTable = config('filterbymodel.tables.user_filters', 'user_filters');
         if (Schema::hasTable($userFilterTable) && !Schema::hasColumn($userFilterTable, 'operator')) {
             Schema::table($userFilterTable, function (Blueprint $table) {
-                $table->string('operator', 20)->default('=')->after('filterable_id')
-                      ->comment('Operatore di confronto per questa assegnazione (=, LIKE, LIKE_REVERSE).');
+                $table->string('operator', 20)->nullable()->default(null)->after('filterable_id')
+                      ->comment('Operatore di confronto per questa assegnazione (=, LIKE, LIKE_REVERSE, o NULL per ereditare dalla definizione).');
             });
         }
     }

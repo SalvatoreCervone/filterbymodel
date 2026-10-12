@@ -226,7 +226,17 @@ class ModelFilterService
                     if (isset($item->filterable_id) && $item->filterable_id !== '') {
                         $rawId = $item->filterable_id;
                         $nodeId = is_numeric($rawId) ? (int) $rawId : (string) $rawId;
-                        $op = !empty($item->operator) ? $item->operator : (!empty($definition->operator) ? $definition->operator : '=');
+                        $defOp = !empty($definition->operator) ? $definition->operator : '=';
+                        $itemOp = !empty($item->operator) ? $item->operator : null;
+
+                        if ($itemOp && $itemOp !== '=') {
+                            $op = $itemOp;
+                        } elseif ($defOp && $defOp !== '=') {
+                            $op = $defOp;
+                        } else {
+                            $op = $itemOp ?: $defOp;
+                        }
+
                         if (!in_array($op, ['=', 'LIKE', 'LIKE_REVERSE'], true)) {
                             $op = '=';
                         }
