@@ -314,6 +314,29 @@
               >
             </div>
 
+            <!-- OPERATORE PREDEFINITO DI COLLEGAMENTO -->
+            <div class="p-3.5 bg-indigo-50/60 rounded-xl border border-indigo-200 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <label class="block text-xs font-extrabold text-slate-800">
+                  Operatore di Confronto Collegamento (Default)
+                </label>
+                <span class="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded">
+                  Default: '='
+                </span>
+              </div>
+              <p class="text-[11px] text-slate-600 leading-relaxed">
+                Stabilisce la modalità predefinita di match tra la scheda protetta e il criterio/pivot. Può essere impostato o variato anche per singolo utente.
+              </p>
+              <select 
+                v-model="form.operator" 
+                class="w-full border border-indigo-300 rounded-xl p-2.5 text-xs font-semibold bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-xs"
+              >
+                <option value="=">= Uguale Esatto (Standard relazionale / veloce)</option>
+                <option value="LIKE">LIKE Diretto (Tabella Protetta LIKE Pivot/Valore)</option>
+                <option value="LIKE_REVERSE">LIKE Inverso / Controcorrente (Pivot/Valore LIKE Tabella Protetta)</option>
+              </select>
+            </div>
+
             <!-- FILTRI E CONDIZIONI ADDIZIONALI (VISUAL RULE BUILDER) -->
             <div class="pt-4 border-t border-slate-200 space-y-3">
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -625,6 +648,8 @@
               </div>
               <div class="text-[11px] text-slate-500 font-mono flex flex-wrap items-center gap-1.5 mt-0.5">
                 <span>chiave: @{{ d.filter_key }}</span>
+                <span v-if="d.operator === 'LIKE'" class="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.2 rounded font-mono font-bold">match: LIKE Diretto</span>
+                <span v-if="d.operator === 'LIKE_REVERSE'" class="bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0.2 rounded font-mono font-bold">match: LIKE Controcorrente</span>
                 <span v-if="d.parent_column" class="bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.2 rounded font-mono">albero: @{{ d.parent_column }}</span>
                 <span v-if="d.key_column" class="bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0.2 rounded font-mono">nodo: @{{ d.key_column }}</span>
                 <span v-if="d.pivot_table">• pivot: @{{ d.pivot_table }}</span>

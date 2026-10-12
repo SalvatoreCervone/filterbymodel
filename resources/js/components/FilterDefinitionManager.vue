@@ -498,6 +498,29 @@
                 </div>
               </div>
 
+              <!-- OPERATORE PREDEFINITO DI COLLEGAMENTO -->
+              <div class="p-3.5 bg-indigo-50/60 rounded-xl border border-indigo-200 space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <label class="block text-xs font-extrabold text-slate-800">
+                    Operatore di Confronto Collegamento (Default)
+                  </label>
+                  <span class="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded">
+                    Default: '='
+                  </span>
+                </div>
+                <p class="text-[11px] text-slate-600 leading-relaxed">
+                  Stabilisce la modalità predefinita di match tra la scheda protetta e il criterio/pivot. Può essere impostato o variato anche per singolo utente.
+                </p>
+                <select 
+                  v-model="form.operator" 
+                  class="w-full border border-indigo-300 rounded-xl p-2.5 text-xs font-semibold bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 shadow-xs"
+                >
+                  <option value="=">= Uguale Esatto (Standard relazionale / veloce)</option>
+                  <option value="LIKE">LIKE Diretto (Tabella Protetta LIKE Pivot/Valore)</option>
+                  <option value="LIKE_REVERSE">LIKE Inverso / Controcorrente (Pivot/Valore LIKE Tabella Protetta)</option>
+                </select>
+              </div>
+
               <!-- FILTRO CONDIZIONALE EXTRA -->
               <div class="space-y-2.5 pt-3 border-t border-slate-200">
                 <div class="flex items-center justify-between">
@@ -640,6 +663,8 @@
                   <div><strong>Scheda protetta:</strong> <span class="font-mono">{{ def.model_class }}</span></div>
                   <div><strong>Criterio:</strong> <span class="font-mono">{{ def.scope_filter }}</span></div>
                   <div><strong>Campo filtro:</strong> <span class="font-mono font-bold text-emerald-800">{{ def.filter_key }}</span></div>
+                  <div v-if="def.operator === 'LIKE'"><span class="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">match: LIKE Diretto</span></div>
+                  <div v-else-if="def.operator === 'LIKE_REVERSE'"><span class="bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">match: LIKE Controcorrente</span></div>
                   <div v-if="def.parent_column"><strong>Colonna albero:</strong> <span class="font-mono text-indigo-700 font-bold">{{ def.parent_column }}</span></div>
                   <div v-if="def.key_column"><strong>Colonna chiave nodo:</strong> <span class="font-mono text-purple-700 font-bold">{{ def.key_column }}</span></div>
                   <div v-if="def.pivot_table"><strong>Tabella ponte:</strong> <span class="font-mono text-sky-800">{{ def.pivot_table }}</span> (rif. scheda: <span class="font-mono text-amber-800">{{ def.pivot_foreign_key }}</span>)</div>
@@ -790,6 +815,7 @@ const form = reactive({
   pivot_foreign_key: '', 
   target_foreign_key: '',
   filter_key: '',
+  operator: '=',
   parent_column: '',
   key_column: '',
   additional_where: null
@@ -908,6 +934,7 @@ const startEditDefinition = (def) => {
   form.pivot_foreign_key = def.pivot_foreign_key || '';
   form.target_foreign_key = def.target_foreign_key || '';
   form.filter_key = def.filter_key || '';
+  form.operator = def.operator || '=';
   form.parent_column = def.parent_column || '';
   form.key_column = def.key_column || '';
   form.additional_where = def.additional_where || null;
@@ -926,6 +953,7 @@ const cancelEditDefinition = () => {
   form.pivot_foreign_key = '';
   form.target_foreign_key = '';
   form.filter_key = '';
+  form.operator = '=';
   form.parent_column = '';
   form.key_column = '';
   form.additional_where = null;
@@ -945,6 +973,7 @@ const handleSubmit = async () => {
       pivot_foreign_key: form.has_pivot ? form.pivot_foreign_key : null,
       target_foreign_key: form.has_pivot && form.target_foreign_key ? form.target_foreign_key : null,
       filter_key: form.filter_key,
+      operator: form.operator || '=',
       parent_column: form.parent_column ? form.parent_column : null,
       key_column: form.key_column ? form.key_column : null,
       additional_where: form.additional_where

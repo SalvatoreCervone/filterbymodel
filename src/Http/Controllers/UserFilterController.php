@@ -41,6 +41,7 @@ class UserFilterController extends Controller
             $userFk            => 'required',
             'filterable_type'  => 'required|string|max:255',
             'filterable_id'    => 'required',
+            'operator'         => 'nullable|string|in:=,LIKE,LIKE_REVERSE',
             'target_model'     => 'nullable|string|max:255',
             'include_children' => 'sometimes|boolean',
             'parent_column'    => 'nullable|string|max:255',
@@ -48,6 +49,7 @@ class UserFilterController extends Controller
             'group'            => 'required|integer|min:1',
         ]);
 
+        $validated['operator'] = !empty($validated['operator']) ? $validated['operator'] : '=';
         $targetModel = !empty($validated['target_model']) ? $validated['target_model'] : null;
         $validated['target_model'] = $targetModel;
 
@@ -55,7 +57,8 @@ class UserFilterController extends Controller
         $query = UserFilter::where($userFk, $validated[$userFk])
             ->where('filterable_type', $validated['filterable_type'])
             ->where('filterable_id', $validated['filterable_id'])
-            ->where('group', $validated['group']);
+            ->where('group', $validated['group'])
+            ->where('operator', $validated['operator']);
 
         if ($targetModel !== null) {
             $query->where('target_model', $targetModel);
@@ -86,6 +89,7 @@ class UserFilterController extends Controller
             $userFk            => 'required',
             'filterable_type'  => 'required|string|max:255',
             'filterable_id'    => 'required',
+            'operator'         => 'nullable|string|in:=,LIKE,LIKE_REVERSE',
             'target_model'     => 'nullable|string|max:255',
             'include_children' => 'sometimes|boolean',
             'parent_column'    => 'nullable|string|max:255',
@@ -93,6 +97,7 @@ class UserFilterController extends Controller
             'group'            => 'required|integer|min:1',
         ]);
 
+        $validated['operator'] = !empty($validated['operator']) ? $validated['operator'] : '=';
         $filter = UserFilter::findOrFail($id);
 
         $targetModel = !empty($validated['target_model']) ? $validated['target_model'] : null;
@@ -103,6 +108,7 @@ class UserFilterController extends Controller
             ->where('filterable_type', $validated['filterable_type'])
             ->where('filterable_id', $validated['filterable_id'])
             ->where('group', $validated['group'])
+            ->where('operator', $validated['operator'])
             ->where('id', '!=', $id);
 
         if ($targetModel !== null) {
@@ -186,6 +192,7 @@ class UserFilterController extends Controller
                         $q = UserFilter::where($userFk, $targetUserId)
                             ->where('filterable_type', $sourceFilter->filterable_type)
                             ->where('filterable_id', $sourceFilter->filterable_id)
+                            ->where('operator', $sourceFilter->operator ?? '=')
                             ->where('group', $sourceFilter->group);
 
                         if ($sourceFilter->target_model !== null) {
@@ -203,6 +210,7 @@ class UserFilterController extends Controller
                         $userFk            => $targetUserId,
                         'filterable_type'  => $sourceFilter->filterable_type,
                         'filterable_id'    => $sourceFilter->filterable_id,
+                        'operator'         => $sourceFilter->operator ?? '=',
                         'target_model'     => $sourceFilter->target_model,
                         'include_children' => $sourceFilter->include_children,
                         'parent_column'    => $sourceFilter->parent_column,

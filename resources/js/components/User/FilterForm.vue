@@ -31,9 +31,9 @@
       <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-start">
         
         <!-- 1. Cosa vuoi filtrare (Definizione / Scope) -->
-        <div class="sm:col-span-4 space-y-1">
+        <div class="sm:col-span-3 space-y-1">
           <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide">
-            1. Criterio di Competenza
+            1. Criterio
           </label>
           <select 
             v-model="form.filterable_type" 
@@ -41,7 +41,7 @@
             class="w-full border border-slate-300 rounded-xl p-2.5 bg-slate-50/70 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition" 
             required
           >
-            <option value="">-- Seleziona Criterio --</option>
+            <option value="">-- Criterio --</option>
             <option v-for="crit in availableCriteria" :key="crit.scope_filter" :value="crit.scope_filter">
               {{ crit.name }}{{ crit.target_models.length ? ' (protegge: ' + crit.target_models.join(', ') + ')' : '' }}
             </option>
@@ -49,24 +49,40 @@
               {{ formatClassName(form.filterable_type) }}
             </option>
           </select>
-          <p class="text-[10px] text-slate-400">Determina su quale entità viene applicata la restrizione.</p>
+          <p class="text-[10px] text-slate-400">Entità della restrizione.</p>
         </div>
 
         <!-- 1.bis Ambito di Validità (Globale o Modello Specifico) -->
-        <div class="sm:col-span-3 space-y-1">
+        <div class="sm:col-span-2 space-y-1">
           <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide">
-            Ambito Validità
+            Ambito
           </label>
           <select 
             v-model="form.target_model" 
             class="w-full border border-slate-300 rounded-xl p-2.5 bg-slate-50/70 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition" 
           >
-            <option value="">Tutte le schede (Globale)</option>
+            <option value="">Globale</option>
             <option v-for="m in currentScopeTargetModels" :key="m.class" :value="m.class">
               Solo per {{ m.name }}
             </option>
           </select>
-          <p class="text-[10px] text-slate-400">Globale o per scheda specifica.</p>
+          <p class="text-[10px] text-slate-400">Tutte o specifica.</p>
+        </div>
+
+        <!-- 1.ter Operatore di Match -->
+        <div class="sm:col-span-2 space-y-1">
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wide">
+            Match
+          </label>
+          <select 
+            v-model="form.operator" 
+            class="w-full border border-slate-300 rounded-xl p-2.5 bg-slate-50/70 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white transition" 
+          >
+            <option value="=">= Uguale</option>
+            <option value="LIKE">LIKE Diretto</option>
+            <option value="LIKE_REVERSE">LIKE Inverso</option>
+          </select>
+          <p class="text-[10px] text-slate-400">Tipo confronto.</p>
         </div>
 
         <!-- 2. Valore del Filtro (ID) -->
@@ -130,6 +146,23 @@
 
       <!-- OPZIONE AGGIUNTIVA: INCLUDI FIGLI (ALBERO) -->
       <div class="pt-3 border-t border-slate-100 space-y-3">
+        <!-- AVVISO EREDITARIETÀ DALLA REGOLA A MONTE -->
+        <div v-if="selectedCriterionParentColumn" class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-2.5 text-emerald-900 text-xs">
+          <svg class="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div class="space-y-0.5">
+            <div class="font-bold flex items-center gap-1.5 flex-wrap text-emerald-950">
+              <span>Gerarchia già configurata a monte:</span>
+              <span class="bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded font-mono text-[11px] font-extrabold">Colonna Padre: {{ selectedCriterionParentColumn }}</span>
+              <span v-if="selectedCriterionKeyColumn" class="bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded font-mono text-[11px] font-extrabold">Chiave Nodo: {{ selectedCriterionKeyColumn }}</span>
+            </div>
+            <p class="text-[11px] text-emerald-700">
+              I campi dell'albero sono ereditati automaticamente dalla regola configurata a monte. Puoi lasciare vuoti i campi sottostanti (compilali solo se desideri forzare un override).
+            </p>
+          </div>
+        </div>
+
         <div class="flex items-center justify-between">
           <label class="flex items-center gap-2.5 cursor-pointer select-none">
             <input 
@@ -214,6 +247,7 @@ const form = reactive({
   filterable_type: '', 
   target_model: '',
   filterable_id: '',  
+  operator: '=',
   include_children: false,
   parent_column: '',
   key_column: '',
@@ -243,7 +277,8 @@ const availableCriteria = computed(() => {
         name: formatClassName(def.scope_filter),
         target_models: [],
         parent_column: def.parent_column || null,
-        key_column: def.key_column || null
+        key_column: def.key_column || null,
+        operator: def.operator || '='
       };
     }
     const modelName = formatClassName(def.model_class);
@@ -265,17 +300,32 @@ const availableCriteria = computed(() => {
       name: formatClassName(props.editingFilter.filterable_type),
       target_models: [],
       parent_column: props.editingFilter.parent_column || null,
-      key_column: props.editingFilter.key_column || null
+      key_column: props.editingFilter.key_column || null,
+      operator: props.editingFilter.operator || '='
     };
   }
 
   return Object.values(map);
 });
 
+const selectedCriterion = computed(() => {
+  if (!form.filterable_type) return null;
+  return availableCriteria.value.find(c => c.scope_filter === form.filterable_type) || null;
+});
+
+const selectedCriterionParentColumn = computed(() => {
+  return selectedCriterion.value?.parent_column || null;
+});
+
+const selectedCriterionKeyColumn = computed(() => {
+  return selectedCriterion.value?.key_column || null;
+});
+
 const resetForm = () => {
   form.filterable_type = '';
   form.target_model = '';
   form.filterable_id = '';
+  form.operator = '=';
   form.group = 1;
   form.include_children = false;
   form.parent_column = '';
@@ -287,11 +337,15 @@ const onScopeChange = () => {
     form.target_model = '';
   }
   const crit = availableCriteria.value.find(c => c.scope_filter === form.filterable_type);
-  if (crit && crit.parent_column && !form.parent_column) {
-    form.parent_column = crit.parent_column;
-  }
-  if (crit && crit.key_column && !form.key_column) {
-    form.key_column = crit.key_column;
+  if (crit) {
+    form.operator = crit.operator || '=';
+    if (crit.parent_column && !form.parent_column) {
+      form.parent_column = crit.parent_column;
+      form.include_children = true;
+    }
+    if (crit.key_column && !form.key_column) {
+      form.key_column = crit.key_column;
+    }
   }
 };
 
@@ -312,6 +366,7 @@ watch(() => props.editingFilter, (newFilter) => {
     form.filterable_type = newFilter.filterable_type || '';
     form.target_model = newFilter.target_model || '';
     form.filterable_id = newFilter.filterable_id !== undefined && newFilter.filterable_id !== null ? String(newFilter.filterable_id) : '';
+    form.operator = newFilter.operator || '=';
     form.group = newFilter.group !== undefined ? Number(newFilter.group) : 1;
     form.include_children = Boolean(newFilter.include_children);
     form.parent_column = newFilter.parent_column || '';

@@ -57,7 +57,21 @@
               </span>
             </td>
             <td class="px-6 py-4 font-mono font-bold text-slate-900">
-              {{ filter.filterable_id }}
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span>{{ filter.filterable_id }}</span>
+                <span 
+                  v-if="filter.operator === 'LIKE'" 
+                  class="px-1.5 py-0.5 bg-blue-100 text-blue-800 border border-blue-200 rounded text-[10px] font-sans font-bold"
+                >
+                  LIKE Diretto
+                </span>
+                <span 
+                  v-else-if="filter.operator === 'LIKE_REVERSE'" 
+                  class="px-1.5 py-0.5 bg-purple-100 text-purple-800 border border-purple-200 rounded text-[10px] font-sans font-bold"
+                >
+                  LIKE Controcorrente
+                </span>
+              </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
               <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">

@@ -215,12 +215,23 @@ class ModelFilterService
                     ? $definition->key_column
                     : $this->resolveKeyColumn($dummyInstance);
 
-                $allowedIds = [];
+                $allowedByOperator = [
+                    '='            => [],
+                    'LIKE'         => [],
+                    'LIKE_REVERSE' => [],
+                ];
+                $allAllowedIds = [];
+
                 foreach ($items as $item) {
                     if (isset($item->filterable_id) && $item->filterable_id !== '') {
                         $rawId = $item->filterable_id;
                         $nodeId = is_numeric($rawId) ? (int) $rawId : (string) $rawId;
-                        $allowedIds[] = $nodeId;
+                        $op = !empty($item->operator) ? $item->operator : (!empty($definition->operator) ? $definition->operator : '=');
+                        if (!in_array($op, ['=', 'LIKE', 'LIKE_REVERSE'], true)) {
+                            $op = '=';
+                        }
+
+                        $currentIds = [$nodeId];
 
                         if ($item->include_children) {
                             $actualParentCol = !empty($item->parent_column)
@@ -231,15 +242,20 @@ class ModelFilterService
                                 ? $item->key_column
                                 : $keyColumn;
 
-                            $allowedIds = array_merge(
-                                $allowedIds,
+                            $currentIds = array_merge(
+                                $currentIds,
                                 $this->getTreeChildrenIds($baseTable, $nodeId, null, $actualParentCol, $actualKeyCol)
                             );
+                        }
+
+                        foreach ($currentIds as $cid) {
+                            $allowedByOperator[$op][] = $cid;
+                            $allAllowedIds[] = $cid;
                         }
                     }
                 }
 
-                if (empty($allowedIds)) {
+                if (empty($allAllowedIds)) {
                     continue;
                 }
 
@@ -262,8 +278,14 @@ class ModelFilterService
                     'pivot_foreign_key'  => !empty($definition->pivot_foreign_key) ? $definition->pivot_foreign_key : null,
                     'target_foreign_key' => !empty($definition->target_foreign_key) ? $definition->target_foreign_key : null,
                     'filter_key'         => $definition->filter_key,
+                    'operator'           => !empty($definition->operator) ? $definition->operator : '=',
                     'additional_where'   => $additionalWhere,
-                    'ids'                => array_values(array_unique($allowedIds)),
+                    'ids'                => array_values(array_unique($allAllowedIds)),
+                    'by_operator'        => [
+                        '='            => array_values(array_unique($allowedByOperator['='])),
+                        'LIKE'         => array_values(array_unique($allowedByOperator['LIKE'])),
+                        'LIKE_REVERSE' => array_values(array_unique($allowedByOperator['LIKE_REVERSE'])),
+                    ],
                 ];
             }
         }
@@ -327,7 +349,7 @@ class ModelFilterService
                                 ? $data['filter_key']
                                 : $tableName . '.' . $data['filter_key'];
 
-                            $subQuery->whereIn($colonnaFiltroCompleta, $data['ids']);
+                            $this->applicaFiltroDirettoConOperatori($subQuery, $colonnaFiltroCompleta, $data);
 
                             if (!$skipAdditional && !empty($data['additional_where'])) {
                                 $this->applicaCondizioniAggiuntive($subQuery, $data['additional_where'], $tableName);
@@ -338,18 +360,201 @@ class ModelFilterService
                                 ? $data['target_foreign_key']
                                 : $builder->getModel()->getKeyName();
 
-                            $subQuery->whereIn($tableName . '.' . $targetKey, function ($query) use ($data, $skipAdditional) {
-                                $query->select($data['pivot_foreign_key'])
-                                    ->from($data['pivot_table'])
-                                    ->whereIn($data['filter_key'], $data['ids']);
-
-                                if (!$skipAdditional && !empty($data['additional_where'])) {
-                                    $this->applicaCondizioniAggiuntive($query, $data['additional_where']);
-                                }
-                            });
+                            $this->applicaFiltroPivotConOperatori($subQuery, $tableName, $targetKey, $data, $skipAdditional);
                         }
                     }
                 });
+            }
+        });
+    }
+
+    /**
+     * Applica il filtro per una relazione diretta gestendo '=', 'LIKE' e 'LIKE_REVERSE'.
+     */
+    protected function applicaFiltroDirettoConOperatori(Builder $subQuery, string $colonnaFiltroCompleta, array $data): void
+    {
+        $byOperator = $data['by_operator'] ?? [
+            '='            => $data['ids'] ?? [],
+            'LIKE'         => [],
+            'LIKE_REVERSE' => [],
+        ];
+
+        $subQuery->where(function (Builder $directQuery) use ($colonnaFiltroCompleta, $byOperator, $data) {
+            $first = true;
+
+            // 1. Operatore '=' (Standard relazionale rapido)
+            if (!empty($byOperator['='])) {
+                $directQuery->whereIn($colonnaFiltroCompleta, $byOperator['=']);
+                $first = false;
+            }
+
+            // 2. Operatore 'LIKE' Diretto: colonna DB LIKE pattern autorizzato
+            if (!empty($byOperator['LIKE'])) {
+                foreach ($byOperator['LIKE'] as $val) {
+                    $pattern = str_contains((string) $val, '%') ? (string) $val : (string) $val . '%';
+                    if ($first) {
+                        $directQuery->where($colonnaFiltroCompleta, 'LIKE', $pattern);
+                        $first = false;
+                    } else {
+                        $directQuery->orWhere($colonnaFiltroCompleta, 'LIKE', $pattern);
+                    }
+                }
+            }
+
+            // 3. Operatore 'LIKE_REVERSE' Controcorrente: pattern autorizzato LIKE colonna DB
+            if (!empty($byOperator['LIKE_REVERSE'])) {
+                foreach ($byOperator['LIKE_REVERSE'] as $val) {
+                    $pattern = (string) $val;
+                    if ($first) {
+                        $directQuery->whereRaw('? LIKE ' . $directQuery->getGrammar()->wrap($colonnaFiltroCompleta), [$pattern]);
+                        $first = false;
+                    } else {
+                        $directQuery->orWhereRaw('? LIKE ' . $directQuery->getGrammar()->wrap($colonnaFiltroCompleta), [$pattern]);
+                    }
+                }
+            }
+
+            // Fallback se nessun operatore popolato
+            if ($first && !empty($data['ids'])) {
+                $directQuery->whereIn($colonnaFiltroCompleta, $data['ids']);
+            }
+        });
+    }
+
+    /**
+     * Applica il filtro per una relazione Pivot (N:M) supportando '=', 'LIKE' e 'LIKE_REVERSE'.
+     */
+    protected function applicaFiltroPivotConOperatori(
+        Builder $subQuery,
+        string $tableName,
+        string $targetKey,
+        array $data,
+        bool $skipAdditional
+    ): void {
+        $targetColumn = $tableName . '.' . $targetKey;
+        $pivotTable = $data['pivot_table'];
+        $pivotForeignKey = $data['pivot_foreign_key'];
+        $pivotFilterKey = $data['filter_key'];
+        $byOperator = $data['by_operator'] ?? [
+            '='            => $data['ids'] ?? [],
+            'LIKE'         => [],
+            'LIKE_REVERSE' => [],
+        ];
+
+        $subQuery->where(function (Builder $pivotOuter) use (
+            $targetColumn,
+            $tableName,
+            $targetKey,
+            $pivotTable,
+            $pivotForeignKey,
+            $pivotFilterKey,
+            $byOperator,
+            $data,
+            $skipAdditional
+        ) {
+            $first = true;
+
+            // 1. MATCH STANDARD '=' (Subquery whereIn classica veloce)
+            if (!empty($byOperator['='])) {
+                $pivotOuter->whereIn($targetColumn, function ($query) use ($pivotTable, $pivotForeignKey, $pivotFilterKey, $byOperator, $data, $skipAdditional) {
+                    $query->select($pivotForeignKey)
+                        ->from($pivotTable)
+                        ->whereIn($pivotFilterKey, $byOperator['=']);
+
+                    if (!$skipAdditional && !empty($data['additional_where'])) {
+                        $this->applicaCondizioniAggiuntive($query, $data['additional_where']);
+                    }
+                });
+                $first = false;
+            }
+
+            // 2. MATCH 'LIKE' DIRETTO (Tabella Protetta LIKE Pivot) -> WHERE EXISTS
+            if (!empty($byOperator['LIKE'])) {
+                $method = $first ? 'whereExists' : 'orWhereExists';
+                $pivotOuter->{$method}(function ($query) use ($targetColumn, $pivotTable, $pivotForeignKey, $pivotFilterKey, $byOperator, $data, $skipAdditional) {
+                    $fullPivotFk = $pivotTable . '.' . $pivotForeignKey;
+                    $fullFilterKey = $pivotTable . '.' . $pivotFilterKey;
+
+                    $query->select(DB::raw(1))
+                        ->from($pivotTable)
+                        ->whereColumn($targetColumn, 'LIKE', $fullPivotFk)
+                        ->where(function ($filterQ) use ($fullFilterKey, $byOperator) {
+                            $this->applicaFiltroValoriCriterio($filterQ, $fullFilterKey, $byOperator['LIKE']);
+                        });
+
+                    if (!$skipAdditional && !empty($data['additional_where'])) {
+                        $this->applicaCondizioniAggiuntive($query, $data['additional_where']);
+                    }
+                });
+                $first = false;
+            }
+
+            // 3. MATCH 'LIKE_REVERSE' CONTROCORRENTE (Pivot LIKE Tabella Protetta) -> WHERE EXISTS
+            if (!empty($byOperator['LIKE_REVERSE'])) {
+                $method = $first ? 'whereExists' : 'orWhereExists';
+                $pivotOuter->{$method}(function ($query) use ($targetColumn, $pivotTable, $pivotForeignKey, $pivotFilterKey, $byOperator, $data, $skipAdditional) {
+                    $fullPivotFk = $pivotTable . '.' . $pivotForeignKey;
+                    $fullFilterKey = $pivotTable . '.' . $pivotFilterKey;
+
+                    $query->select(DB::raw(1))
+                        ->from($pivotTable)
+                        ->whereColumn($fullPivotFk, 'LIKE', $targetColumn)
+                        ->where(function ($filterQ) use ($fullFilterKey, $byOperator) {
+                            $this->applicaFiltroValoriCriterio($filterQ, $fullFilterKey, $byOperator['LIKE_REVERSE']);
+                        });
+
+                    if (!$skipAdditional && !empty($data['additional_where'])) {
+                        $this->applicaCondizioniAggiuntive($query, $data['additional_where']);
+                    }
+                });
+                $first = false;
+            }
+
+            // Fallback se nessun operatore categorizzato
+            if ($first && !empty($data['ids'])) {
+                $pivotOuter->whereIn($targetColumn, function ($query) use ($pivotTable, $pivotForeignKey, $pivotFilterKey, $data, $skipAdditional) {
+                    $query->select($pivotForeignKey)
+                        ->from($pivotTable)
+                        ->whereIn($pivotFilterKey, $data['ids']);
+
+                    if (!$skipAdditional && !empty($data['additional_where'])) {
+                        $this->applicaCondizioniAggiuntive($query, $data['additional_where']);
+                    }
+                });
+            }
+        });
+    }
+
+    /**
+     * Applica i valori del criterio autorizzato dentro la subquery pivot.
+     */
+    protected function applicaFiltroValoriCriterio($query, string $colonna, array $valori): void
+    {
+        $exactValues = [];
+        $likePatterns = [];
+
+        foreach ($valori as $v) {
+            $vStr = (string) $v;
+            if (str_contains($vStr, '%')) {
+                $likePatterns[] = $vStr;
+            } else {
+                $exactValues[] = $v;
+            }
+        }
+
+        $query->where(function ($q) use ($colonna, $exactValues, $likePatterns) {
+            $first = true;
+            if (!empty($exactValues)) {
+                $q->whereIn($colonna, $exactValues);
+                $first = false;
+            }
+            foreach ($likePatterns as $pat) {
+                if ($first) {
+                    $q->where($colonna, 'LIKE', $pat);
+                    $first = false;
+                } else {
+                    $q->orWhere($colonna, 'LIKE', $pat);
+                }
             }
         });
     }
@@ -360,10 +565,48 @@ class ModelFilterService
     public function verificaRecord($modelInstance, array $filtersByType): bool
     {
         foreach ($filtersByType as $type => $data) {
+            $byOperator = $data['by_operator'] ?? [
+                '='            => $data['ids'] ?? [],
+                'LIKE'         => [],
+                'LIKE_REVERSE' => [],
+            ];
+
             if (empty($data['pivot_table'])) {
                 // Verifica relazione diretta
                 $campoModello = $data['filter_key'];
-                if (!in_array($modelInstance->{$campoModello}, $data['ids'])) {
+                $valoreRecord = $modelInstance->{$campoModello};
+
+                $match = false;
+                if (!empty($byOperator['=']) && in_array($valoreRecord, $byOperator['='])) {
+                    $match = true;
+                }
+
+                if (!$match && !empty($byOperator['LIKE'])) {
+                    foreach ($byOperator['LIKE'] as $pattern) {
+                        $p = str_contains((string) $pattern, '%') ? (string) $pattern : (string) $pattern . '%';
+                        $regex = '/^' . str_replace(['%', '_'], ['.*', '.'], preg_quote($p, '/')) . '$/i';
+                        if (preg_match($regex, (string) $valoreRecord)) {
+                            $match = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!$match && !empty($byOperator['LIKE_REVERSE'])) {
+                    foreach ($byOperator['LIKE_REVERSE'] as $pattern) {
+                        $regex = '/^' . str_replace(['%', '_'], ['.*', '.'], preg_quote((string) $valoreRecord, '/')) . '$/i';
+                        if (preg_match($regex, (string) $pattern)) {
+                            $match = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!$match && empty($byOperator['LIKE']) && empty($byOperator['LIKE_REVERSE']) && in_array($valoreRecord, $data['ids'])) {
+                    $match = true;
+                }
+
+                if (!$match) {
                     return false;
                 }
 
@@ -378,9 +621,41 @@ class ModelFilterService
                     ? $modelInstance->{$data['target_foreign_key']}
                     : $modelInstance->getKey();
 
-                $query = DB::table($data['pivot_table'])
-                    ->where($data['pivot_foreign_key'], $recordKey)
-                    ->whereIn($data['filter_key'], $data['ids']);
+                $query = DB::table($data['pivot_table']);
+                $query->where(function ($q) use ($data, $recordKey, $byOperator) {
+                    $first = true;
+                    if (!empty($byOperator['='])) {
+                        $q->where(function ($sub) use ($data, $recordKey, $byOperator) {
+                            $sub->where($data['pivot_foreign_key'], $recordKey)
+                                ->whereIn($data['filter_key'], $byOperator['=']);
+                        });
+                        $first = false;
+                    }
+                    if (!empty($byOperator['LIKE'])) {
+                        $method = $first ? 'where' : 'orWhere';
+                        $q->{$method}(function ($sub) use ($data, $recordKey, $byOperator) {
+                            $sub->whereRaw('? LIKE ' . DB::connection()->getQueryGrammar()->wrap($data['pivot_foreign_key']), [(string) $recordKey])
+                                ->where(function ($filterQ) use ($data, $byOperator) {
+                                    $this->applicaFiltroValoriCriterio($filterQ, $data['filter_key'], $byOperator['LIKE']);
+                                });
+                        });
+                        $first = false;
+                    }
+                    if (!empty($byOperator['LIKE_REVERSE'])) {
+                        $method = $first ? 'where' : 'orWhere';
+                        $q->{$method}(function ($sub) use ($data, $recordKey, $byOperator) {
+                            $sub->whereRaw(DB::connection()->getQueryGrammar()->wrap($data['pivot_foreign_key']) . ' LIKE ?', [(string) $recordKey])
+                                ->where(function ($filterQ) use ($data, $byOperator) {
+                                    $this->applicaFiltroValoriCriterio($filterQ, $data['filter_key'], $byOperator['LIKE_REVERSE']);
+                                });
+                        });
+                        $first = false;
+                    }
+                    if ($first) {
+                        $q->where($data['pivot_foreign_key'], $recordKey)
+                            ->whereIn($data['filter_key'], $data['ids']);
+                    }
+                });
 
                 if (!empty($data['additional_where'])) {
                     $this->applicaCondizioniAggiuntive($query, $data['additional_where']);

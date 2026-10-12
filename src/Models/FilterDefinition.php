@@ -16,6 +16,7 @@ class FilterDefinition extends Model
         'pivot_foreign_key',
         'target_foreign_key',
         'filter_key',
+        'operator',
         'parent_column',
         'key_column',
         'additional_where',

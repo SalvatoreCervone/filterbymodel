@@ -32,10 +32,13 @@ class FilterDefinitionController extends Controller
             'pivot_foreign_key'  => 'nullable|string|max:255',
             'target_foreign_key' => 'nullable|string|max:255',
             'filter_key'         => 'required|string|max:255',
+            'operator'           => 'nullable|string|in:=,LIKE,LIKE_REVERSE',
             'parent_column'      => 'nullable|string|max:255',
             'key_column'         => 'nullable|string|max:255',
             'additional_where'   => 'nullable',
         ]);
+
+        $validated['operator'] = !empty($validated['operator']) ? $validated['operator'] : '=';
 
         // Gestione del campo additional_where: accetta sia stringa JSON che array
         if (isset($validated['additional_where']) && is_string($validated['additional_where'])) {
@@ -85,10 +88,13 @@ class FilterDefinitionController extends Controller
             'pivot_foreign_key'  => 'nullable|string|max:255',
             'target_foreign_key' => 'nullable|string|max:255',
             'filter_key'         => 'required|string|max:255',
+            'operator'           => 'nullable|string|in:=,LIKE,LIKE_REVERSE',
             'parent_column'      => 'nullable|string|max:255',
             'key_column'         => 'nullable|string|max:255',
             'additional_where'   => 'nullable',
         ]);
+
+        $validated['operator'] = !empty($validated['operator']) ? $validated['operator'] : '=';
 
         if (isset($validated['additional_where']) && is_string($validated['additional_where'])) {
             $decoded = json_decode($validated['additional_where'], true);

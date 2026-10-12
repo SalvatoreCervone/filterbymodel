@@ -212,6 +212,20 @@
               <span class="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded font-mono font-bold text-[11px]">ID: @{{ f.filterable_id }}</span>
               <span class="px-2 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-bold">Gruppo @{{ f.group }}</span>
 
+              <!-- Badge Operatore -->
+              <span 
+                v-if="f.operator === 'LIKE'" 
+                class="px-2 py-0.5 bg-blue-100 text-blue-800 border border-blue-200 rounded text-[10px] font-bold"
+              >
+                LIKE Diretto
+              </span>
+              <span 
+                v-else-if="f.operator === 'LIKE_REVERSE'" 
+                class="px-2 py-0.5 bg-purple-100 text-purple-800 border border-purple-200 rounded text-[10px] font-bold"
+              >
+                LIKE Controcorrente
+              </span>
+
               <!-- Badge Ambito Specifico / Globale -->
               <span 
                 v-if="f.target_model" 
@@ -388,6 +402,22 @@
             </p>
           </div>
 
+          <!-- OPERATORE DI CONFRONTO / MATCH -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Operatore di Confronto (Match)</label>
+            <select 
+              v-model="userForm.operator"
+              class="w-full border border-slate-300 rounded-xl p-2.5 text-xs font-semibold text-slate-800 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 bg-white"
+            >
+              <option value="=">= Uguale Esatto (Standard relazionale / veloce)</option>
+              <option value="LIKE">LIKE Diretto (Tabella protetta LIKE Valore/Pivot)</option>
+              <option value="LIKE_REVERSE">LIKE Inverso / Controcorrente (Valore/Pivot LIKE Tabella protetta)</option>
+            </select>
+            <p class="text-[10px] text-slate-400 mt-1">
+              Imposta se confrontare tramite uguaglianza standard (=) o tramite pattern/prefissi (LIKE diretto o inverso in controcorrente).
+            </p>
+          </div>
+
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1">Gruppo Logico (AND)</label>
@@ -436,6 +466,23 @@
               <span class="text-[10px] font-bold text-indigo-700 bg-white border border-indigo-200 px-2 py-0.5 rounded-full shadow-sm">
                 Gerarchia Attiva
               </span>
+            </div>
+
+            <!-- AVVISO EREDITARIETÀ DALLA REGOLA A MONTE -->
+            <div v-if="selectedCriterionParentColumn" class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-2.5 text-emerald-900 text-xs">
+              <svg class="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div class="space-y-0.5">
+                <div class="font-bold flex items-center gap-1.5 flex-wrap text-emerald-950">
+                  <span>Gerarchia già configurata a monte:</span>
+                  <span class="bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded font-mono text-[11px] font-extrabold">Colonna Padre: @{{ selectedCriterionParentColumn }}</span>
+                  <span v-if="selectedCriterionKeyColumn" class="bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded font-mono text-[11px] font-extrabold">Chiave Nodo: @{{ selectedCriterionKeyColumn }}</span>
+                </div>
+                <p class="text-[11px] text-emerald-700">
+                  I campi dell'albero sono ereditati automaticamente dalla regola configurata a monte. Puoi lasciare vuoti i campi sottostanti (compilali solo se desideri forzare un override).
+                </p>
+              </div>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-0.5">
@@ -515,6 +562,20 @@
                 <span class="font-extrabold" :class="editingFilterId === f.id ? 'text-amber-900 font-black' : 'text-slate-900'">@{{ formatClassName(f.filterable_type) }}</span>
                 <span class="px-2 py-0.5 bg-indigo-100 text-indigo-800 rounded font-mono font-bold text-[11px]">ID: @{{ f.filterable_id }}</span>
                 <span class="px-2 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-bold">Gruppo @{{ f.group }}</span>
+
+                <!-- Badge Operatore -->
+                <span 
+                  v-if="f.operator === 'LIKE'" 
+                  class="px-2 py-0.5 bg-blue-100 text-blue-800 border border-blue-200 rounded text-[10px] font-bold"
+                >
+                  LIKE Diretto
+                </span>
+                <span 
+                  v-else-if="f.operator === 'LIKE_REVERSE'" 
+                  class="px-2 py-0.5 bg-purple-100 text-purple-800 border border-purple-200 rounded text-[10px] font-bold"
+                >
+                  LIKE Controcorrente
+                </span>
 
                 <!-- Badge Ambito Specifico / Globale -->
                 <span 

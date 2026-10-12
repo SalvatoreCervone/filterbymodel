@@ -57,6 +57,7 @@
         pivot_foreign_key: '',
         target_foreign_key: '',
         filter_key: '',
+        operator: '=',
         parent_column: '',
         key_column: '',
         additional_where: null
@@ -351,6 +352,7 @@
         form.pivot_foreign_key = d.pivot_foreign_key || '';
         form.target_foreign_key = d.target_foreign_key || '';
         form.filter_key = d.filter_key || '';
+        form.operator = d.operator || '=';
         form.parent_column = d.parent_column || '';
         form.key_column = d.key_column || '';
         
@@ -388,6 +390,7 @@
         form.pivot_foreign_key = '';
         form.target_foreign_key = '';
         form.filter_key = '';
+        form.operator = '=';
         form.parent_column = '';
         form.key_column = '';
         conditions.value = [];
@@ -417,6 +420,7 @@
             pivot_foreign_key: form.has_pivot ? form.pivot_foreign_key : null,
             target_foreign_key: form.has_pivot && form.target_foreign_key ? form.target_foreign_key : null,
             filter_key: form.filter_key,
+            operator: form.operator || '=',
             parent_column: form.parent_column ? form.parent_column : null,
             key_column: form.key_column ? form.key_column : null,
             additional_where: validConditions.length > 0 ? validConditions : null
@@ -553,6 +557,7 @@
         scope_filter: '',
         target_model: '',
         filterable_id: '',
+        operator: '=',
         group: 1,
         include_children: false,
         parent_column: '',
@@ -647,7 +652,9 @@
               scope_filter: def.scope_filter,
               name: formatClassName(def.scope_filter),
               target_models: [],
-              parent_column: def.parent_column || null
+              parent_column: def.parent_column || null,
+              key_column: def.key_column || null,
+              operator: def.operator || '='
             };
           }
           const modelName = formatClassName(def.model_class);
@@ -657,8 +664,24 @@
           if (def.parent_column && !map[def.scope_filter].parent_column) {
             map[def.scope_filter].parent_column = def.parent_column;
           }
+          if (def.key_column && !map[def.scope_filter].key_column) {
+            map[def.scope_filter].key_column = def.key_column;
+          }
         });
         return Object.values(map);
+      });
+
+      const selectedCriterion = computed(() => {
+        if (!userForm.scope_filter) return null;
+        return availableCriteria.value.find(c => c.scope_filter === userForm.scope_filter) || null;
+      });
+
+      const selectedCriterionParentColumn = computed(() => {
+        return selectedCriterion.value?.parent_column || null;
+      });
+
+      const selectedCriterionKeyColumn = computed(() => {
+        return selectedCriterion.value?.key_column || null;
       });
 
       const getTargetModelsForScope = (scopeFilter) => {
@@ -676,13 +699,21 @@
         userForm.target_model = '';
         userForm.filterable_id = '';
         const selectedCrit = availableCriteria.value.find(c => c.scope_filter === userForm.scope_filter);
-        if (selectedCrit && selectedCrit.parent_column) {
-          userForm.parent_column = selectedCrit.parent_column;
-          userForm.key_column = selectedCrit.key_column || '';
-          userForm.include_children = true;
+        if (selectedCrit) {
+          userForm.operator = selectedCrit.operator || '=';
+          if (selectedCrit.parent_column) {
+            userForm.parent_column = selectedCrit.parent_column;
+            userForm.key_column = selectedCrit.key_column || '';
+            userForm.include_children = true;
+          } else {
+            userForm.parent_column = '';
+            userForm.key_column = selectedCrit.key_column || '';
+            userForm.include_children = false;
+          }
         } else {
+          userForm.operator = '=';
           userForm.parent_column = '';
-          userForm.key_column = selectedCrit ? (selectedCrit.key_column || '') : '';
+          userForm.key_column = '';
           userForm.include_children = false;
         }
         loadCriteriaItems(userForm.scope_filter);
@@ -695,6 +726,7 @@
         userForm.scope_filter = filter.filterable_type;
         userForm.target_model = filter.target_model || '';
         userForm.filterable_id = filter.filterable_id;
+        userForm.operator = filter.operator || '=';
         userForm.group = filter.group || 1;
         userForm.include_children = !!filter.include_children;
         userForm.parent_column = filter.parent_column || '';
@@ -711,6 +743,7 @@
         userForm.scope_filter = '';
         userForm.target_model = '';
         userForm.filterable_id = '';
+        userForm.operator = '=';
         userForm.group = 1;
         userForm.include_children = false;
         userForm.parent_column = '';
@@ -730,6 +763,7 @@
           f.filterable_type === userForm.scope_filter &&
           String(f.filterable_id) === String(userForm.filterable_id) &&
           Number(f.group) === Number(userForm.group || 1) &&
+          (f.operator || '=') === (userForm.operator || '=') &&
           (f.target_model || null) === (userForm.target_model || null)
         );
 
@@ -747,6 +781,7 @@
                 user_id: selectedUser.value.id,
                 filterable_type: userForm.scope_filter,
                 filterable_id: userForm.filterable_id,
+                operator: userForm.operator || '=',
                 target_model: userForm.target_model ? userForm.target_model : null,
                 group: userForm.group || 1,
                 include_children: userForm.include_children,
@@ -763,6 +798,7 @@
                 user_id: selectedUser.value.id,
                 filterable_type: userForm.scope_filter,
                 filterable_id: userForm.filterable_id,
+                operator: userForm.operator || '=',
                 target_model: userForm.target_model ? userForm.target_model : null,
                 group: userForm.group || 1,
                 include_children: userForm.include_children,
